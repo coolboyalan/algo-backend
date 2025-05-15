@@ -232,7 +232,7 @@ class BaseModel extends Model {
       count = parseInt(countResult.count, 10);
     }
 
-    return pagination !== "false"
+    return pagination !== "false" && pagination !== false
       ? {
           result,
           pagination: {
