@@ -238,8 +238,8 @@ class BaseModel extends Model {
           pagination: {
             totalItems: count,
             totalPages: Math.ceil(count / limit),
-            itemsPerPage: limit,
-            currentPage: page,
+            itemsPerPage: Number(limit),
+            currentPage: Number(page),
           },
         }
       : result;
