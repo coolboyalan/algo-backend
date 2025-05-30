@@ -235,12 +235,7 @@ class BaseModel extends Model {
     return pagination !== "false" && pagination !== false
       ? {
           result,
-          pagination: {
-            totalItems: count,
-            totalPages: Math.ceil(count / limit),
-            itemsPerPage: Number(limit),
-            currentPage: Number(page),
-          },
+          total: count,
         }
       : result;
   }

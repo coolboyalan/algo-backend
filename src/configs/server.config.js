@@ -13,11 +13,11 @@ const server = express();
 
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();
-await sequelize.sync();
+await sequelize.sync({ alter: true });
 
 // Request logging middleware
 server.use(morgan(logger));
-
+server.use(cors());
 // Middleware to parse incoming JSON request bodies
 server.use(multer().any());
 server.use(express.json()); // Express's built-in JSON parser

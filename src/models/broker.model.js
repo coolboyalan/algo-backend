@@ -1,17 +1,14 @@
 import BaseModel from "#models/base";
 import { DataTypes } from "sequelize";
 
-class File extends BaseModel {}
+class Broker extends BaseModel {}
 
-File.initialize({
+Broker.initialize({
   name: {
     type: DataTypes.STRING,
-  },
-  path: {
-    type: DataTypes.TEXT,
     allowNull: false,
-    file: true,
+    unqiue: true,
   },
 });
 
-export default File;
+export default Broker;

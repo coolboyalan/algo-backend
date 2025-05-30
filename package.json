@@ -1,20 +1,8 @@
 {
-  "name": "nodejs-express-sql",
+  "name": "algo-backend",
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/coolboyalan/nodejs-express-sql.git"
-  },
-  "keywords": [],
-  "author": "Deepak Singh",
-  "license": "ISC",
-  "type": "module",
-  "bugs": {
-    "url": "https://github.com/coolboyalan/nodejs-express-sql/issues"
-  },
-  "homepage": "https://github.com/coolboyalan/nodejs-express-sql#readme",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "generate": "node src/scripts/generateModule.js"
@@ -47,5 +35,17 @@
     "node-cron": "^3.0.3",
     "pg": "^8.15.6",
     "sequelize": "^6.37.7"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/coolboyalan/algo-backend.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "module",
+  "bugs": {
+    "url": "https://github.com/coolboyalan/algo-backend/issues"
+  },
+  "homepage": "https://github.com/coolboyalan/algo-backend#readme"
 }

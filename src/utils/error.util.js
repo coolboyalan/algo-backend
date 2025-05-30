@@ -8,89 +8,77 @@ import {
 } from "sequelize";
 import { session } from "#middlewares/requestSession";
 
-/**
- * Global error handler function that logs errors and handles different types of Sequelize errors.
- *
- * @param {Error} error - The error object to be handled
- * @param {Object} req - The request object
- * @param {Object} res - The response object
- * @param {Function} next - The next middleware function
- * @return {Object} - The response object with appropriate error handling
- */
 export const globalErrorHandler = async (error, req, res, next) => {
   const transaction = await session.get("transaction");
-  transaction ? await transaction.rollback() : null;
+  if (transaction) await transaction.rollback();
 
-  // Handle validation errors
+  // Validation error
   if (error instanceof ValidationError) {
+    const messages = error.errors
+      .map((e) => `${e.path}: ${e.message}`)
+      .join(", ");
     return res.status(400).json({
       status: false,
-      message: "Validation Error",
-      errors: error.errors.map((err) => ({
-        field: err.path, // Field name
-        message: err.message,
-      })),
+      message: `Validation Error: ${messages}`,
     });
   }
 
-  // Handle foreign key errors
+  // Foreign key error
   if (error instanceof ForeignKeyConstraintError) {
+    const field = error.fields[0];
     return res.status(400).json({
       status: false,
-      message: "Foreign Key Constraint Error",
-      errors: {
-        field: error.fields[0], // Field name causing the error
-        message: `${error.fields[0]} is invalid or doesn't exist`,
-      },
+      message: `Invalid foreign key: ${field}`,
     });
   }
 
-  // Handle unique constraint errors
+  // Unique constraint error
   if (error instanceof UniqueConstraintError) {
-    const field = error.errors[0]?.path; // Extract field name from the error
-
+    const field = error.errors[0]?.path;
     return res.status(409).json({
       status: false,
-      message: `${field} already exists`, // Dynamic message with field
-      errors: error.errors.map((err) => ({
-        field: err.path, // Field name
-        message: err.message,
-      })),
+      message: `${field} already exists`,
     });
   }
 
-  // Handle other Sequelize errors (e.g., DatabaseError)
+  // Database error
   if (error instanceof DatabaseError) {
     return res.status(500).json({
       status: false,
-      message: "Database error occurred",
-      details: error.message,
+      message: `Database Error: ${error.message}`,
     });
   }
 
-  // Handle connection errors
+  // Connection error
   if (error instanceof ConnectionError) {
     return res.status(503).json({
       status: false,
-      message: "Database connection error",
-      details: error.message,
+      message: `Database Connection Error: ${error.message}`,
     });
   }
 
-  // Handle other known errors (e.g., custom HTTP errors)
+  // Custom HTTP error
   if (error.httpStatus && error.message) {
-    return res
-      .status(error.httpStatus)
-      .json({ status: false, message: error.message });
+    return res.status(error.httpStatus).json({
+      status: false,
+      message: error.message,
+    });
   }
 
-  // For unknown errors, send a generic message
-  if (typeof error === "string") next(error);
+  // Plain string error
+  if (typeof error === "string") {
+    return res.status(500).json({
+      status: false,
+      message: error,
+    });
+  }
 
-  // Handle generic errors
+  // Unknown fallback error
   return res.status(500).json({
     status: false,
-    message: "Internal Server Error",
-    details: env.NODE_ENV === "development" ? error.message : undefined, // Expose details only in development
+    message:
+      env.NODE_ENV === "development"
+        ? `Internal Server Error: ${error.message}`
+        : "Internal Server Error",
   });
 };
