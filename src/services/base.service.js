@@ -1,4 +1,11 @@
-import { Sequelize, Op, literal } from "sequelize";
+import {
+  Sequelize,
+  Op,
+  literal,
+  where as sequelizeWhere,
+  cast,
+  col,
+} from "sequelize";
 
 class BaseService {
   static Model = null;
@@ -76,10 +83,7 @@ class BaseService {
 
     // Merge search and date filters into one where clause
     const where = { ...searchWhere, ...dateWhere };
-
-    if (Object.keys(where).length > 0) {
-      options.where = where;
-    }
+    options.where = where;
 
     // 5. Clean up used keys from queryParams
     usedKeys.forEach((key) => {

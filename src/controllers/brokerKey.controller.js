@@ -11,7 +11,6 @@ class BrokerKeyController extends BaseController {
 
   static async create(req, res, next) {
     const userId = session.get("userId");
-    console.log(session.get("payload"));
     req.body.userId = userId;
     return await super.create(req, res, next);
   }
@@ -36,7 +35,6 @@ class BrokerKeyController extends BaseController {
     };
 
     const options = this.Service.getOptions(req.query, customOptions);
-    console.log(options);
 
     const data = await this.Service.get(null, req.query, options);
     sendResponse(httpStatus.OK, res, data);
