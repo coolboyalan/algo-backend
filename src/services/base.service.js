@@ -42,7 +42,10 @@ class BaseService {
 
     // 2. Sorting
     if (sortBy) {
-      options.order = [[sortBy, sortOrder.toUpperCase()]];
+      const sortField = sortBy.includes(".")
+        ? col(sortBy)
+        : [sortBy, sortOrder.toUpperCase()];
+      options.order = [[...[].concat(sortField)]];
     }
 
     // 3. Searching/Filtering
@@ -57,14 +60,28 @@ class BaseService {
 
       if (searchFields.length > 0) {
         searchWhere[Op.or] = searchFields.map((field) => {
-          if (["id", "someIntegerField", "someNumericField"].includes(field)) {
+          const isNumeric = [
+            "id",
+            "someIntegerField",
+            "someNumericField",
+          ].includes(field);
+
+          // Handle nested fields like "Broker.name"
+          if (field.includes(".")) {
             return sequelizeWhere(cast(col(field), "TEXT"), {
               [Op.iLike]: `%${search}%`,
             });
           }
-          return {
-            [field]: { [Op.iLike]: `%${search}%` },
-          };
+
+          return isNumeric
+            ? sequelizeWhere(cast(col(field), "TEXT"), {
+                [Op.iLike]: `%${search}%`,
+              })
+            : {
+                [field]: {
+                  [Op.iLike]: `%${search}%`,
+                },
+              };
         });
       }
     }
@@ -73,32 +90,28 @@ class BaseService {
     const dateWhere = {};
     if (startDate || endDate) {
       dateWhere.createdAt = {};
-      if (startDate) {
-        dateWhere.createdAt[Op.gte] = new Date(startDate);
-      }
-      if (endDate) {
-        dateWhere.createdAt[Op.lte] = new Date(endDate);
-      }
+      if (startDate) dateWhere.createdAt[Op.gte] = new Date(startDate);
+      if (endDate) dateWhere.createdAt[Op.lte] = new Date(endDate);
     }
 
-    // Merge search and date filters into one where clause
-    const where = { ...searchWhere, ...dateWhere };
+    // 5. Clean queryParams of used fields
+    usedKeys.forEach((key) => delete queryParams[key]);
+
+    // 6. Merge filters
+    const where = {
+      ...searchWhere,
+      ...dateWhere,
+      ...queryParams, // allow direct key filtering
+    };
+
     options.where = where;
 
-    // 5. Clean up used keys from queryParams
-    usedKeys.forEach((key) => {
-      if (key in queryParams) {
-        delete queryParams[key];
-      }
-    });
-
-    // 6. Merge with custom options (custom options override defaults)
-    for (const key in customOptions) {
-      options[key] = customOptions[key];
-    }
+    // 7. Merge with custom options (custom options override defaults)
+    Object.assign(options, customOptions);
 
     return options;
   }
+
   static async get(id, filters, options = {}) {
     if (!id) {
       return await this.Model.findAll({

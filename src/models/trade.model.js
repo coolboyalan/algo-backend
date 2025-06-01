@@ -46,6 +46,18 @@ Trade.initialize({
     type: DataTypes.DATE,
     allowNull: false,
   },
+  direction: {
+    type: DataTypes.ENUM("buy", "sell"),
+    allowNull: false,
+  },
+});
+
+Trade.belongsTo(User, {
+  foreignKey: "userId",
+});
+
+Trade.belongsTo(Broker, {
+  foreignKey: "brokerId",
 });
 
 export default Trade;
