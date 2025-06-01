@@ -17,6 +17,8 @@ const env = cleanEnv(process.env, {
   AWS_BUCKET_NAME: str(),
   AWS_S3_ENDPOINT: str(),
   NODE_ENV: str({ default: "development" }),
+  KITE_KEY: str(),
+  KITE_ACCESS_TOKEN: str(),
 });
 
 export default env;

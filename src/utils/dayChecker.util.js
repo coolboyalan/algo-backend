@@ -1,3 +1,25 @@
+export function isWithinTradingHoursIST() {
+  const nowUTC = new Date();
+
+  // Convert current UTC time to IST (UTC+5:30)
+  const nowIST = new Date(
+    nowUTC.toLocaleString("en-US", { timeZone: "Asia/Kolkata" }),
+  );
+
+  const day = nowIST.getDay(); // Sunday = 0, Saturday = 6
+  if (day === 0 || day === 6) return false; // Weekend
+
+  const hours = nowIST.getHours();
+  const minutes = nowIST.getMinutes();
+
+  const totalMinutes = hours * 60 + minutes;
+
+  const startMinutes = 8 * 60 + 30; // 8:30 AM IST
+  const endMinutes = 15 * 60; // 3:00 PM IST
+
+  return totalMinutes >= startMinutes && totalMinutes <= endMinutes;
+}
+
 export function isMondayOrFridayInIST() {
   // Get current time in UTC
   const now = new Date();

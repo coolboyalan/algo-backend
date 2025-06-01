@@ -33,11 +33,16 @@ BrokerKey.initialize(
     },
     token: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
     },
     tokenDate: {
       type: DataTypes.DATE,
+      allowNull: true,
+    },
+    status: {
+      type: DataTypes.BOOLEAN,
       allowNull: false,
+      defaultValue: false,
     },
   },
   {
@@ -49,5 +54,13 @@ BrokerKey.initialize(
     ],
   },
 );
+
+BrokerKey.belongsTo(Broker, {
+  foreignKey: "brokerId",
+});
+
+BrokerKey.belongsTo(User, {
+  foreignKey: "userId",
+});
 
 export default BrokerKey;

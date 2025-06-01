@@ -240,26 +240,22 @@ class BaseModel extends Model {
       : result;
   }
 
-  static async findDocById(id, allowNull = false) {
+  static async findDocById(id, options = {}) {
     this.idChecker(id);
 
-    const data = await this.findByPk(id);
-    if (allowNull) {
-      return data;
-    }
-    if (!data) {
-      throw new AppError({
-        status: false,
-        message: `${this.name} not found with id ${id}`,
-        httpStatus: httpStatus.BAD_REQUEST,
-      });
-    }
-
-    return data;
+    return await this.findDoc({ id }, options);
   }
 
-  static async findDoc(filters, allowNull = false) {
-    const doc = await this.findOne({ where: filters });
+  static async findDoc(filters, options = {}) {
+    const { allowNull = false } = options;
+
+    delete options.allowNull;
+
+    const doc = await this.findOne({
+      where: filters,
+      ...options,
+    });
+
     if (doc || allowNull) {
       return doc;
     }

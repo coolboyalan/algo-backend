@@ -6,7 +6,9 @@ class BaseController {
 
   static async get(req, res, next) {
     const { id } = req.params;
-    const data = await this.Service.get(id, req.query);
+    const options = this.Service.getOptions(req.query);
+    console.log(options);
+    const data = await this.Service.get(id, req.query, options);
     sendResponse(
       httpStatus.OK,
       res,

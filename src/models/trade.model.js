@@ -1,7 +1,7 @@
+import User from "#models/user";
+import Broker from "#models/broker";
 import BaseModel from "#models/base";
 import { DataTypes } from "sequelize";
-import Broker from "#models/broker";
-import User from "#models/user";
 
 class Trade extends BaseModel {}
 
@@ -41,6 +41,10 @@ Trade.initialize({
   profitAndLoss: {
     type: DataTypes.DECIMAL(10, 2),
     allowNull: true,
+  },
+  tradeTime: {
+    type: DataTypes.DATE,
+    allowNull: false,
   },
 });
 
