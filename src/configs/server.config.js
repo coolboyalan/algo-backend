@@ -7,7 +7,6 @@ import logger from "#configs/logger";
 import httpStatus from "http-status";
 import sequelize from "#configs/database";
 import "#utils/assetChecker";
-import { getSpecificNiftyOption } from "#utils/assetChecker";
 import { globalErrorHandler } from "#utils/error";
 import requestSessionMiddleware from "#middlewares/requestSession";
 
@@ -15,9 +14,9 @@ const server = express();
 
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();
-await sequelize.sync({ alter: true });
+// await sequelize.sync({ alter: true });
 
-// Request logging middleware
+//Request logging middleware
 server.use(morgan(logger));
 server.use(cors());
 // Middleware to parse incoming JSON request bodies

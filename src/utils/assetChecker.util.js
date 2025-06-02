@@ -1,9 +1,9 @@
-import axios from "axios";
-import fs from "fs"; // <-- for streaming
-import fsPromises from "fs/promises"; // <-- for async file operations
 import path from "path";
-import { fileURLToPath } from "url";
+import axios from "axios";
 import { parse } from "csv-parse";
+import { fileURLToPath } from "url";
+import { createWriteStream } from "fs";
+import { readFile, writeFile, unlink } from "fs/promises";
 
 // Helper to get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -11,13 +11,30 @@ const __dirname = path.dirname(__filename);
 
 const INSTRUMENTS_URL = "https://api.kite.trade/instruments";
 const CSV_FILE_PATH = path.join(__dirname, "instruments_downloaded.csv");
-const OUTPUT_JSON_PATH = path.join(__dirname, "immediate_nifty_options.json");
+const OUTPUT_JSON_PATH = path.join(__dirname, "immediate_expiry_options.json");
 
-let immediateNiftyOptionsCache = [];
+const appCache = {
+  NIFTY: [],
+  SENSEX: [],
+};
 
-/**
- * Downloads the instruments CSV file.
- */
+export const INDEX_CONFIGS = {
+  NIFTY: {
+    displayName: "NIFTY50",
+    csvName: "NIFTY",
+    csvExchange: "NFO",
+    csvSymbolPrefix: "NIFTY",
+    excludeSymbolPrefixes: ["NIFTYNXT", "NIFTYMID", "NIFTYFIN", "NIFTYBANK"],
+  },
+  SENSEX: {
+    displayName: "SENSEX",
+    csvName: "SENSEX",
+    csvExchange: "BFO",
+    csvSymbolPrefix: "SENSEX",
+    excludeSymbolPrefixes: [],
+  },
+};
+
 async function downloadInstrumentsFile() {
   console.log(`Starting download from ${INSTRUMENTS_URL}...`);
   try {
@@ -32,7 +49,7 @@ async function downloadInstrumentsFile() {
       return false;
     }
 
-    const writer = fs.createWriteStream(CSV_FILE_PATH);
+    const writer = createWriteStream(CSV_FILE_PATH);
     response.data.pipe(writer);
 
     return new Promise((resolve, reject) => {
@@ -42,9 +59,9 @@ async function downloadInstrumentsFile() {
         );
         resolve(true);
       });
-      writer.on("error", (err) => {
+      writer.on("error", async (err) => {
         console.error("Error writing downloaded file:", err.message);
-        fsPromises.unlink(CSV_FILE_PATH).catch(() => {});
+        await unlink(CSV_FILE_PATH).catch(() => {});
         reject(false);
       });
     });
@@ -54,17 +71,125 @@ async function downloadInstrumentsFile() {
   }
 }
 
-/**
- * Filters NIFTY options for the most immediate expiry date from the CSV file.
- */
-async function findAndCacheImmediateNiftyOptions() {
-  console.log(`Processing CSV file: ${CSV_FILE_PATH}`);
-  try {
-    const fileContent = await fsPromises.readFile(CSV_FILE_PATH, {
-      encoding: "utf8",
+function processAndCacheImmediateOptions(indexKey, allRecords) {
+  const config = INDEX_CONFIGS[indexKey];
+  if (!config) {
+    console.error(`No configuration found for index key: ${indexKey}`);
+    return;
+  }
+  console.log(`\nProcessing options for ${config.displayName}...`);
+
+  const indexOptions = allRecords.filter((instrument) => {
+    const name = instrument.name?.toUpperCase() || "";
+    const exchange = instrument.exchange?.toUpperCase() || "";
+    const instrumentType = instrument.instrument_type?.toUpperCase() || "";
+    const tradingsymbol = instrument.tradingsymbol?.toUpperCase() || "";
+
+    if (
+      config.excludeSymbolPrefixes?.some((prefix) =>
+        tradingsymbol.startsWith(prefix),
+      )
+    ) {
+      return false;
+    }
+
+    return (
+      name === config.csvName &&
+      exchange === config.csvExchange &&
+      (instrumentType === "CE" || instrumentType === "PE") &&
+      tradingsymbol.startsWith(config.csvSymbolPrefix)
+    );
+  });
+
+  if (indexOptions.length === 0) {
+    console.log(`No ${config.displayName} options found.`);
+    appCache[indexKey] = [];
+    return;
+  }
+
+  console.log(`Found ${indexOptions.length} ${config.displayName} options.`);
+
+  let minExpiryDate = null;
+  let validOptionsWithDate = [];
+
+  indexOptions.forEach((opt) => {
+    if (opt.expiry?.trim()) {
+      try {
+        const expiryDate = new Date(opt.expiry);
+        if (!isNaN(expiryDate.getTime())) {
+          validOptionsWithDate.push({ ...opt, expiryDateObj: expiryDate });
+          if (!minExpiryDate || expiryDate < minExpiryDate) {
+            minExpiryDate = expiryDate;
+          }
+        }
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
+  if (!minExpiryDate) {
+    console.log(
+      `Could not determine the most immediate expiry date for ${config.displayName}.`,
+    );
+    appCache[indexKey] = [];
+    return;
+  }
+
+  const minExpiryDateString = minExpiryDate.toISOString().split("T")[0];
+  const immediateExpiryOptions = validOptionsWithDate
+    .filter(
+      (opt) =>
+        opt.expiryDateObj.toISOString().split("T")[0] === minExpiryDateString,
+    )
+    .map((opt) => {
+      const { expiryDateObj, ...rest } = opt;
+      rest.strike = parseFloat(rest.strike);
+      return rest;
     });
 
-    const records = await new Promise((resolve, reject) => {
+  appCache[indexKey] = immediateExpiryOptions;
+
+  console.log(
+    `Found ${immediateExpiryOptions.length} options for immediate expiry (${minExpiryDateString}).`,
+  );
+  if (immediateExpiryOptions.length) {
+    const sample = immediateExpiryOptions[0];
+    console.log(
+      `Sample: ${sample.tradingsymbol} @ ${sample.strike} (${sample.instrument_type})`,
+    );
+  }
+}
+
+export function getSpecificCachedOption(indexKey, strikePrice, direction) {
+  const cachedOptions = appCache[indexKey];
+  if (!cachedOptions?.length) {
+    console.warn(`Cache for ${indexKey} is empty.`);
+    return null;
+  }
+
+  const targetDirection = direction.toUpperCase();
+  return (
+    cachedOptions.find(
+      (opt) =>
+        opt.strike === strikePrice &&
+        opt.instrument_type.toUpperCase() === targetDirection,
+    ) || null
+  );
+}
+
+async function main() {
+  const downloadSuccess = await downloadInstrumentsFile();
+  if (!downloadSuccess) {
+    console.log("Skipping processing due to download failure.");
+    return;
+  }
+
+  console.log(`\nReading and parsing CSV...`);
+  let allRecords;
+  try {
+    const fileContent = await readFile(CSV_FILE_PATH, "utf8");
+    allRecords = await new Promise((resolve, reject) => {
       parse(
         fileContent,
         {
@@ -72,139 +197,48 @@ async function findAndCacheImmediateNiftyOptions() {
           skip_empty_lines: true,
           trim: true,
         },
-        (err, parsedRecords) => {
-          if (err) return reject(err);
-          resolve(parsedRecords);
-        },
+        (err, records) => (err ? reject(err) : resolve(records)),
       );
     });
-
-    console.log(`Parsed ${records.length} records from the CSV.`);
-
-    const niftyOptions = records.filter((instrument) => {
-      const name = instrument.name ? instrument.name.toUpperCase() : "";
-      const exchange = instrument.exchange
-        ? instrument.exchange.toUpperCase()
-        : "";
-      const instrumentType = instrument.instrument_type
-        ? instrument.instrument_type.toUpperCase()
-        : "";
-      const tradingsymbol = instrument.tradingsymbol
-        ? instrument.tradingsymbol.toUpperCase()
-        : "";
-
-      return (
-        name === "NIFTY" &&
-        exchange === "NFO" &&
-        (instrumentType === "CE" || instrumentType === "PE") &&
-        tradingsymbol.startsWith("NIFTY") &&
-        !tradingsymbol.startsWith("NIFTYNXT") &&
-        !tradingsymbol.startsWith("NIFTYMID") &&
-        !tradingsymbol.startsWith("NIFTYFIN") &&
-        !tradingsymbol.startsWith("NIFTYBANK")
-      );
-    });
-
-    if (niftyOptions.length === 0) {
-      console.log("No NIFTY options found.");
-      immediateNiftyOptionsCache = [];
-      return;
-    }
-
-    let minExpiryDate = null;
-    let validOptionsWithDate = [];
-
-    niftyOptions.forEach((opt) => {
-      if (opt.expiry && opt.expiry.trim() !== "") {
-        try {
-          const expiryDate = new Date(opt.expiry);
-          if (isNaN(expiryDate.getTime())) return;
-          validOptionsWithDate.push({ ...opt, expiryDateObj: expiryDate });
-          if (minExpiryDate === null || expiryDate < minExpiryDate) {
-            minExpiryDate = expiryDate;
-          }
-        } catch (e) {
-          /* ignore parse error for a single date */
-        }
-      }
-    });
-
-    if (minExpiryDate === null) {
-      console.log("Could not determine the most immediate expiry date.");
-      immediateNiftyOptionsCache = [];
-      return;
-    }
-
-    const minExpiryDateString = minExpiryDate.toISOString().split("T")[0];
-    immediateNiftyOptionsCache = validOptionsWithDate
-      .filter(
-        (opt) =>
-          opt.expiryDateObj.toISOString().split("T")[0] === minExpiryDateString,
-      )
-      .map((opt) => {
-        const { expiryDateObj, ...rest } = opt;
-        rest.strike = parseFloat(rest.strike);
-        return rest;
-      });
-
-    if (immediateNiftyOptionsCache.length === 0) {
-      console.log(
-        `No NIFTY options found for the most immediate expiry date: ${minExpiryDateString}`,
-      );
-    } else {
-      console.log(
-        `Found ${immediateNiftyOptionsCache.length} NIFTY options with expiry (${minExpiryDateString}).`,
-      );
-      const sample = immediateNiftyOptionsCache[0];
-      console.log(
-        `Sample: Symbol: ${sample.tradingsymbol}, Expiry: ${sample.expiry}, Strike: ${sample.strike}, Type: ${sample.instrument_type}`,
-      );
-
-      await fsPromises.writeFile(
-        OUTPUT_JSON_PATH,
-        JSON.stringify(immediateNiftyOptionsCache, null, 2),
-      );
-      console.log(`Immediate NIFTY options saved to ${OUTPUT_JSON_PATH}`);
-    }
   } catch (error) {
-    console.error("Error processing CSV file:", error.message);
-    immediateNiftyOptionsCache = [];
-  }
-}
-
-/**
- * Gets a specific NIFTY option from the cached immediate expiry options.
- */
-export function getSpecificNiftyOption(strikePrice, direction) {
-  if (immediateNiftyOptionsCache.length === 0) {
-    console.warn("Cache is empty. Run processing first.");
-    return null;
+    console.error("Failed to read/parse CSV:", error.message);
+    return;
   }
 
-  const targetDirection = direction.toUpperCase();
-  const foundOption = immediateNiftyOptionsCache.find(
-    (opt) =>
-      opt.strike === strikePrice &&
-      opt.instrument_type.toUpperCase() === targetDirection,
+  processAndCacheImmediateOptions("NIFTY", allRecords);
+  processAndCacheImmediateOptions("SENSEX", allRecords);
+
+  await writeFile(OUTPUT_JSON_PATH, JSON.stringify(appCache, null, 2));
+  console.log(`\nCached options written to ${OUTPUT_JSON_PATH}`);
+
+  console.log(`\n--- Example lookups ---`);
+  const strikeNifty = appCache.NIFTY[0]?.strike;
+  if (strikeNifty) {
+    const opt = getSpecificCachedOption("NIFTY", strikeNifty, "CE");
+    console.log(
+      opt
+        ? `NIFTY ${strikeNifty} CE: ${opt.tradingsymbol}`
+        : "NIFTY CE not found.",
+    );
+  }
+
+  const strikeSensex = appCache.SENSEX[0]?.strike;
+  if (strikeSensex) {
+    const opt = getSpecificCachedOption("SENSEX", strikeSensex, "PE");
+    console.log(
+      opt
+        ? `SENSEX ${strikeSensex} PE: ${opt.tradingsymbol}`
+        : "SENSEX PE not found.",
+    );
+  }
+
+  const customStrike = 23000;
+  const customOpt = getSpecificCachedOption("NIFTY", customStrike, "CE");
+  console.log(
+    customOpt
+      ? `Custom strike NIFTY ${customStrike} CE: ${customOpt.tradingsymbol}`
+      : `No NIFTY CE found for strike ${customStrike}`,
   );
-  return foundOption || null;
 }
 
-/**
- * Main function to orchestrate the download and processing.
- */
-async function main() {
-  const downloadSuccess = await downloadInstrumentsFile();
-  if (downloadSuccess) {
-    await findAndCacheImmediateNiftyOptions();
-
-    if (immediateNiftyOptionsCache.length < 0) {
-      console.log("Skipping filtering due to download failure.");
-    }
-  }
-}
-
-// Run the main process
-main().catch((error) => {
-  console.error("Unhandled error in main:", error);
-});
+// main().catch((err) => console.error("Unhandled error in main:", err));

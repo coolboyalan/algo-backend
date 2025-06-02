@@ -24,6 +24,7 @@ class UserController extends BaseController {
       const payload = {
         userId: user.id,
         email: user.email,
+        name: user.name,
       };
 
       const token = createToken(payload);
@@ -32,6 +33,8 @@ class UserController extends BaseController {
         status: true,
         message: "Login successful",
         token,
+        name: user.name,
+        email: user.email,
       });
     } catch (err) {
       next(err);
