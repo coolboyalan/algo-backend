@@ -6,6 +6,8 @@ import router from "#routes/index";
 import logger from "#configs/logger";
 import httpStatus from "http-status";
 import sequelize from "#configs/database";
+import "#utils/assetChecker";
+import { getSpecificNiftyOption } from "#utils/assetChecker";
 import { globalErrorHandler } from "#utils/error";
 import requestSessionMiddleware from "#middlewares/requestSession";
 

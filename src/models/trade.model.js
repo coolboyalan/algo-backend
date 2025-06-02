@@ -1,4 +1,5 @@
 import User from "#models/user";
+import Asset from "#models/asset";
 import Broker from "#models/broker";
 import BaseModel from "#models/base";
 import { DataTypes } from "sequelize";
@@ -22,9 +23,13 @@ Trade.initialize({
       key: User.primaryKeyAttribute,
     },
   },
-  baseAsset: {
-    type: DataTypes.STRING,
+  baseAssetId: {
+    type: DataTypes.INTEGER,
     allowNull: false,
+    references: {
+      model: Asset,
+      key: Asset.primaryKeyAttribute,
+    },
   },
   asset: {
     type: DataTypes.STRING,
@@ -32,6 +37,10 @@ Trade.initialize({
   },
   price: {
     type: DataTypes.DECIMAL(10, 2),
+    allowNull: false,
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
     allowNull: false,
   },
   parentTrade: {
@@ -48,6 +57,10 @@ Trade.initialize({
   },
   direction: {
     type: DataTypes.ENUM("buy", "sell"),
+    allowNull: false,
+  },
+  type: {
+    type: DataTypes.ENUM("entry", "exit"),
     allowNull: false,
   },
 });

@@ -14,8 +14,8 @@ class BaseService {
     const {
       page = 1,
       limit = 10,
-      sortBy,
-      sortOrder = "ASC",
+      sortBy = "createdAt",
+      sortOrder = "DESC",
       search,
       searchIn,
       startDate,
