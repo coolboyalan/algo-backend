@@ -44,6 +44,15 @@ BrokerKey.initialize(
       allowNull: false,
       defaultValue: false,
     },
+    balance: {
+      type: DataTypes.INTEGER,
+    },
+    loginUrl: {
+      type: DataTypes.TEXT,
+    },
+    redirectUrl: {
+      type: DataTypes.TEXT,
+    },
   },
   {
     indexes: [

@@ -12,21 +12,31 @@ class DailyAsset extends BaseModel {
   ];
 }
 
-DailyAsset.initialize({
-  assetId: {
-    type: DataTypes.INTEGER,
-    allowNull: false,
-    references: {
-      model: Asset,
-      key: Asset.primaryKeyAttribute,
+DailyAsset.initialize(
+  {
+    assetId: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      references: {
+        model: Asset,
+        key: Asset.primaryKeyAttribute,
+      },
+    },
+    day: {
+      type: DataTypes.ENUM(DailyAsset.WeekdaysEnumArr),
+      allowNull: false,
     },
   },
-  day: {
-    type: DataTypes.ENUM(DailyAsset.WeekdaysEnumArr),
-    allowNull: false,
-    unique: false,
+  {
+    indexes: [
+      {
+        name: "unique_asset_day_index",
+        unique: true,
+        fields: ["day"],
+      },
+    ],
   },
-});
+);
 
 DailyAsset.belongsTo(Asset, {
   foreignKey: "assetId",

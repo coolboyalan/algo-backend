@@ -5,7 +5,7 @@ class Broker extends BaseModel {}
 
 Broker.initialize({
   name: {
-    type: DataTypes.STRING,
+    type: DataTypes.ENUM("Zerodha", "Upstox", "Angel One"),
     allowNull: false,
     unqiue: true,
   },

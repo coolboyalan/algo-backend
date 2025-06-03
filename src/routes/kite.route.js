@@ -8,6 +8,10 @@ const router = express.Router();
 // router.use(authentication);
 
 router
+  .route("/login/:userId")
+  .get(asyncHandler(KiteController.login.bind(KiteController)));
+
+router
   .route("/:id?")
   .get(asyncHandler(KiteController.get.bind(KiteController)))
   .post(asyncHandler(KiteController.create.bind(KiteController)))
