@@ -40,6 +40,8 @@ class BrokerKeyController extends BaseController {
       ],
     };
 
+    req.query.userId = session.get("userId");
+
     const options = this.Service.getOptions(req.query, customOptions);
 
     const data = await this.Service.get(null, req.query, options);
