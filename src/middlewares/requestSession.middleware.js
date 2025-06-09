@@ -36,6 +36,9 @@ export default function () {
       if (req.method !== "GET" && req.method !== "OPTIONS") {
         session.set("transaction", await sequelize.transaction());
       }
+      if (req.originalUrl.includes("/login")) {
+        session.set("transaction", await sequelize.transaction());
+      }
       next();
     });
   };

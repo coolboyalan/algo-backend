@@ -8,9 +8,13 @@ import {
 class DailyLevelService extends Service {
   static Model = DailyLevel;
 
-  static async create(token) {
+  static async create({ instrumentToken, apiKey, accessToken }) {
     const today = getISTMidnightFakeUTCString();
-    const data = await getLastTradingDayOHLC(token);
+    const data = await getLastTradingDayOHLC({
+      instrumentToken,
+      apiKey,
+      accessToken,
+    });
     if (!data) return null;
 
     data.forDay = today;
@@ -22,8 +26,8 @@ class DailyLevelService extends Service {
     if (existing) return existing.toJSON();
 
     const pivot = parseFloat(((high + low + close) / 3).toFixed(2));
-    const tc = parseFloat(((high + low) / 2).toFixed(2));
-    const bc = parseFloat((pivot - tc + pivot).toFixed(2));
+    const bc = parseFloat(((high + low) / 2).toFixed(2));
+    const tc = parseFloat((pivot - bc + pivot).toFixed(2));
     const r1 = parseFloat((2 * pivot - low).toFixed(2));
     const r2 = parseFloat((pivot + (high - low)).toFixed(2));
     const r3 = parseFloat((r1 + (high - low)).toFixed(2));
@@ -62,7 +66,11 @@ function getISTDate(date) {
   return new Date(date.getTime() + istOffset);
 }
 
-export async function getLastTradingDayOHLC({ instrumentToken, apiKey, accessToken }) {
+export async function getLastTradingDayOHLC({
+  instrumentToken,
+  apiKey,
+  accessToken,
+}) {
   const maxTries = 10;
   let date = new Date();
   date.setDate(date.getDate() - 1);
@@ -81,7 +89,7 @@ export async function getLastTradingDayOHLC({ instrumentToken, apiKey, accessTok
           method: "GET",
           headers: {
             "X-Kite-Version": "3",
-            "Authorization": `token ${apiKey}:${accessToken}`,
+            Authorization: `token ${apiKey}:${accessToken}`,
           },
         });
 

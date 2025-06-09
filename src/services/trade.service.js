@@ -4,6 +4,8 @@ import Trade from "#models/trade";
 import BaseService from "#services/base";
 import BrokerKeyService from "#services/brokerKey";
 import DailyAssetService from "#services/dailyAsset";
+import Broker from "#models/broker";
+import User from "#models/user";
 
 class TradeService extends BaseService {
   static Model = Trade;
@@ -18,6 +20,7 @@ class TradeService extends BaseService {
 
   static dailyAsset = null;
   static keys = null;
+  static dailyAssetToken = null;
 }
 
 cron.schedule("* * * * * *", async () => {
@@ -48,8 +51,7 @@ cron.schedule("* * * * * *", async () => {
       if (!TradeService.dailyAsset) {
         const day = TradeService.dayMap[now.getDay()];
 
-
-		          const dailyAsset = await DailyAssetService.getDoc(
+        const dailyAsset = await DailyAssetService.getDoc(
           { day },
           {
             include: [
@@ -63,15 +65,29 @@ cron.schedule("* * * * * *", async () => {
         );
 
         TradeService.dailyAsset = dailyAsset.Asset.name;
+        TradeService.dailyAssetToken = dailyAsset.Asset.zerodhaToken;
       }
-      const keys = await BrokerKeyService.Model.findAll({
-        where: { status: true },
-      });
-
-      console.log(keys);
     }
 
-    if (isInRange && minute % 3 === 0 && second === 0) {
+    const keys = await BrokerKeyService.Model.findAll({
+      where: { status: true },
+      include: [
+        {
+          model: Broker,
+          attributes: ["id", "name"],
+        },
+        {
+          model: User,
+          attributes: ["id", "role"],
+        },
+      ],
+    });
+
+    TradeService.keys = keys.find((ele) => {
+      return ele.Broker.name === "Zerodha" && ele.User.role === "admin";
+    });
+
+    if (isInRange /**&& minute % 3 === 0 && second === 0*/) {
       const formatDate = (dateObj) => {
         const y = dateObj.getUTCFullYear();
         const m = String(dateObj.getUTCMonth() + 1).padStart(2, "0");
@@ -81,17 +97,30 @@ cron.schedule("* * * * * *", async () => {
         return `${y}-${m}-${d} ${h}:${min}:00`;
       };
 
-      // TO = current IST time
       const toTime = formatDate(istNow);
-
-      // FROM = IST time - 3 minutes
       const fromTime = formatDate(new Date(istNow.getTime() - 3 * 60 * 1000));
-      let [data] = await kite.getHistoricalData(
-        global.levels.token,
-        "3minute",
-        fromTime,
-        toTime,
-      );
+
+      const instrumentToken = TradeService.dailyAssetToken;
+      const interval = "3minute";
+      const apiKey = TradeService.keys.apiKey;
+      const accessToken = TradeService.keys.token;
+
+      const url = `https://api.kite.trade/instruments/historical/${instrumentToken}/${interval}?from=${encodeURIComponent(fromTime)}&to=${encodeURIComponent(toTime)}&continuous=false`;
+
+      const response = await fetch(url, {
+        method: "GET",
+        headers: {
+          "X-Kite-Version": "3",
+          Authorization: `token ${apiKey}:${accessToken}`,
+        },
+      });
+
+      const json = await response.json();
+
+      if (!response.ok) {
+        console.error("Error fetching historical data:", json);
+        throw new Error(json.message || "Kite API error");
+      }
 
       const { close: price } = data;
 

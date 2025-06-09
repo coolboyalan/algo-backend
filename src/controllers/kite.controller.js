@@ -12,9 +12,11 @@ import crypto from "crypto";
 import BrokerKeyService from "#services/brokerKey";
 import BrokerService from "#services/broker";
 import TradeService from "#services/trade";
-import {getLastTradingDayOHLC} from "#services/dailyLevel"
-import AssetService from "#services/asset"
-import DailyAsset from "#services/dailyAsset"
+import { getLastTradingDayOHLC } from "#services/dailyLevel";
+import AssetService from "#services/asset";
+import DailyAsset from "#services/dailyAsset";
+import DailyLevelService from "#services/dailyLevel";
+import { sendResponse } from "#utils/response";
 
 class KiteController extends BaseController {
   static async login(req, res, next) {
@@ -36,8 +38,11 @@ class KiteController extends BaseController {
         });
       }
 
-	  const broker = await BrokerService.getDoc({name:"Zerodha"});
-      const brokerKey = await BrokerKeyService.getDoc({ userId,brokerId:broker.id });
+      const broker = await BrokerService.getDoc({ name: "Zerodha" });
+      const brokerKey = await BrokerKeyService.getDoc({
+        userId,
+        brokerId: broker.id,
+      });
 
       // Step 1: Generate checksum for session exchange
       const checksum = crypto
@@ -79,35 +84,43 @@ class KiteController extends BaseController {
         return res.status(500).json({ error: "Failed to fetch profile" });
       }
 
-		const now = new Date()
+      const now = new Date();
 
-	  const day = TradeService.dayMap[now.getDay()]
+      const day = TradeService.dayMap[now.getDay()];
 
-	  const asset = await DailyAsset.getDoc({day},{include:[{
-		  model:AssetService.Model,
-	  }]})
+      const asset = await DailyAsset.getDoc(
+        { day },
+        {
+          include: [
+            {
+              model: AssetService.Model,
+            },
+          ],
+        },
+      );
 
-	  const assetToken = asset.Asset.zerodhaToken;
+      const assetToken = asset.Asset.zerodhaToken;
 
-    // Optional: Fetch OHLC if needed
-      const lastOhlc = await getLastTradingDayOHLC({instrumentToken:assetToken,apiKey:brokerKey.apiKey,accessToken});
+      // Optional: Fetch OHLC if needed
+      const lastOhlc = await getLastTradingDayOHLC({
+        instrumentToken: assetToken,
+        apiKey: brokerKey.apiKey,
+        accessToken,
+      });
       brokerKey.token = accessToken;
       brokerKey.tokenDate = new Date();
       brokerKey.status = true;
 
       await brokerKey.save();
 
-	 // Step 5: Generate levels and store globally
-      const todayData = await DailyLevelService.create(accessToken);
-
-      return res.status(200).json({
-        message: "Login successful",
-        profile,
-        token,
-        buffer,
-        levels: todayData,
+      // Step 5: Generate levels and store globally
+      const todayData = await DailyLevelService.create({
+        instrumentToken: assetToken,
+        apiKey: brokerKey.apiKey,
+        accessToken,
       });
-	
+
+      sendResponse(200, res, { profile, accessToken }, "Login successful");
     } catch (err) {
       console.error(err?.response?.data || err.message);
       return res.status(500).json({ error: "Login failed" });
