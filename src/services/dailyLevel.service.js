@@ -62,7 +62,7 @@ function getISTDate(date) {
   return new Date(date.getTime() + istOffset);
 }
 
-export async function getLastTradingDayOHLC(instrumentToken) {
+export async function getLastTradingDayOHLC({ instrumentToken, apiKey, accessToken }) {
   const maxTries = 10;
   let date = new Date();
   date.setDate(date.getDate() - 1);
@@ -71,26 +71,36 @@ export async function getLastTradingDayOHLC(instrumentToken) {
     const day = date.getDay(); // Sunday = 0, Saturday = 6
 
     if (day !== 0 && day !== 6) {
-      const fromDate = new Date(date);
-      const toDate = new Date(date);
+      const fromDate = date.toISOString().split("T")[0];
+      const toDate = fromDate;
+
+      const url = `https://api.kite.trade/instruments/historical/${instrumentToken}/day?from=${fromDate}&to=${toDate}`;
 
       try {
-        const candles = await kite.getHistoricalData(
-          instrumentToken,
-          "day",
-          fromDate,
-          toDate,
-        );
+        const response = await fetch(url, {
+          method: "GET",
+          headers: {
+            "X-Kite-Version": "3",
+            "Authorization": `token ${apiKey}:${accessToken}`,
+          },
+        });
 
-        if (candles.length > 0) {
-          const { date, open, high, low, close } = candles[0];
-          return { date: getISTDate(date), open, high, low, close };
+        const data = await response.json();
+
+        if (response.ok && data.data?.candles?.length > 0) {
+          const [dateTime, open, high, low, close] = data.data.candles[0];
+          return {
+            date: new Date(dateTime).toLocaleDateString("en-IN"),
+            open,
+            high,
+            low,
+            close,
+          };
+        } else {
+          console.warn(`No data for ${fromDate}`);
         }
       } catch (err) {
-        console.error(
-          `Error fetching data for ${fromDate.toISOString().split("T")[0]}:`,
-          err.message,
-        );
+        console.error(`Error fetching data for ${fromDate}:`, err.message);
       }
     }
 
@@ -100,5 +110,4 @@ export async function getLastTradingDayOHLC(instrumentToken) {
   console.error("No trading data found in the last 10 days.");
   return null;
 }
-
 export default DailyLevelService;

@@ -5,4 +5,4 @@ class DailyAssetService extends BaseService {
   static Model = DailyAsset;
 }
 
-export default DailyAssetService;
+export default DailyAssetService

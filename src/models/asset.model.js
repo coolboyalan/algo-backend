@@ -11,7 +11,7 @@ Asset.initialize({
     //WARN: Unique constraint missing
   },
   zerodhaToken: {
-    type: DataTypes.STRING,
+    type: DataTypes.INTEGER,
   },
 });
 

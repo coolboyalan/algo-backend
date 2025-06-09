@@ -44,10 +44,12 @@ cron.schedule("* * * * * *", async () => {
       (hour > 7 && hour < 15) ||
       (hour === 15 && minute <= 30);
 
-    if (preRange && minute % 1 === 0 && second === 40) {
+    if (preRange && second % 1 === 0 /*&& second === 40*/) {
       if (!TradeService.dailyAsset) {
         const day = TradeService.dayMap[now.getDay()];
-        const dailyAsset = await DailyAssetService.getDoc(
+
+
+		          const dailyAsset = await DailyAssetService.getDoc(
           { day },
           {
             include: [
@@ -59,6 +61,7 @@ cron.schedule("* * * * * *", async () => {
             allowNull: false,
           },
         );
+
         TradeService.dailyAsset = dailyAsset.Asset.name;
       }
       const keys = await BrokerKeyService.Model.findAll({

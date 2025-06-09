@@ -10,6 +10,11 @@ import {
 import axios from "axios";
 import crypto from "crypto";
 import BrokerKeyService from "#services/brokerKey";
+import BrokerService from "#services/broker";
+import TradeService from "#services/trade";
+import {getLastTradingDayOHLC} from "#services/dailyLevel"
+import AssetService from "#services/asset"
+import DailyAsset from "#services/dailyAsset"
 
 class KiteController extends BaseController {
   static async login(req, res, next) {
@@ -31,7 +36,8 @@ class KiteController extends BaseController {
         });
       }
 
-      const brokerKey = await BrokerKeyService.getDoc({ userId });
+	  const broker = await BrokerService.getDoc({name:"Zerodha"});
+      const brokerKey = await BrokerKeyService.getDoc({ userId,brokerId:broker.id });
 
       // Step 1: Generate checksum for session exchange
       const checksum = crypto
@@ -73,21 +79,26 @@ class KiteController extends BaseController {
         return res.status(500).json({ error: "Failed to fetch profile" });
       }
 
-      // Step 4: Get token and buffer based on day
-      const isSpecialDay = isMondayOrFridayInIST();
-      const token = isSpecialDay ? 265 : 256265;
-      const buffer = isSpecialDay ? 45 : 15;
+		const now = new Date()
 
-      // Optional: Fetch OHLC if needed
-      const lastOhlc = await getLastTradingDayOHLC(token);
+	  const day = TradeService.dayMap[now.getDay()]
+
+	  const asset = await DailyAsset.getDoc({day},{include:[{
+		  model:AssetService.Model,
+	  }]})
+
+	  const assetToken = asset.Asset.zerodhaToken;
+
+    // Optional: Fetch OHLC if needed
+      const lastOhlc = await getLastTradingDayOHLC({instrumentToken:assetToken,apiKey:brokerKey.apiKey,accessToken});
       brokerKey.token = accessToken;
       brokerKey.tokenDate = new Date();
       brokerKey.status = true;
 
       await brokerKey.save();
 
-      // Step 5: Generate levels and store globally
-      const todayData = await DailyLevelService.create(token);
+	 // Step 5: Generate levels and store globally
+      const todayData = await DailyLevelService.create(accessToken);
 
       return res.status(200).json({
         message: "Login successful",
@@ -96,6 +107,7 @@ class KiteController extends BaseController {
         buffer,
         levels: todayData,
       });
+	
     } catch (err) {
       console.error(err?.response?.data || err.message);
       return res.status(500).json({ error: "Login failed" });
