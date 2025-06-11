@@ -120,6 +120,8 @@ class KiteController extends BaseController {
         accessToken,
       });
 
+      TradeService.dailyLevel = todayData;
+
       sendResponse(200, res, { profile, accessToken }, "Login successful");
     } catch (err) {
       console.error(err?.response?.data || err.message);

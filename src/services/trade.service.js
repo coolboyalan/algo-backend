@@ -6,6 +6,8 @@ import BrokerKeyService from "#services/brokerKey";
 import DailyAssetService from "#services/dailyAsset";
 import Broker from "#models/broker";
 import User from "#models/user";
+import DailyLevelService from "#services/dailyLevel";
+import { getSpecificCachedOption } from "#utils/assetChecker";
 
 class TradeService extends BaseService {
   static Model = Trade;
@@ -22,6 +24,8 @@ class TradeService extends BaseService {
   static keys = null;
   static adminKey = null;
   static dailyAssetToken = null;
+  static dailyLevel = null;
+  static lastTrade = null;
 }
 
 cron.schedule("* * * * * *", async () => {
@@ -38,8 +42,8 @@ cron.schedule("* * * * * *", async () => {
 
     // Only run every 3 minutes at 00 second, between 09:18 and 15:30 IS
     const isInRange =
-      (hour === 9 && minute >= 30) ||
-      (hour > 9 && hour < 15) ||
+      (hour === 7 && minute >= 30) ||
+      (hour > 7 && hour < 15) ||
       (hour === 15 && minute <= 30);
     //
 
@@ -68,6 +72,10 @@ cron.schedule("* * * * * *", async () => {
 
         TradeService.dailyAsset = dailyAsset.Asset.name;
         TradeService.dailyAssetToken = dailyAsset.Asset.zerodhaToken;
+        TradeService.lastTrade = await TradeService.getDoc(
+          { type: "exit" },
+          { allowNull: true },
+        );
       }
 
       const keys = await BrokerKeyService.Model.findAll({
@@ -90,6 +98,10 @@ cron.schedule("* * * * * *", async () => {
         return ele.Broker.name === "Zerodha" && ele.User.role === "admin";
       });
 
+      TradeService.dailyLevel = await DailyLevelService.getDoc(
+        {},
+        { raw: true },
+      );
     }
     if (isInRange /**&& minute % 3 === 0 && second === 0*/) {
       const formatDate = (dateObj) => {
@@ -126,26 +138,38 @@ cron.schedule("* * * * * *", async () => {
         throw new Error(json.message || "Kite API error");
       }
 
-      const { close: price } = data;
+      const { data } = json;
 
-      if (price === null || price === undefined) {
-        console.log("Invalid Price");
+      if (!data || !Array.isArray(data.candles) || data.candles.length === 0) {
+        console.log("No candle data available");
+        return;
       }
 
-      const { bc, tc, r1, r2, r3, r4, s1, s2, s3, s4 } = global.levels;
+      // Get the last candle in the array
+      const latestCandle = data.candles[data.candles.length - 1];
 
-      const BUFFER = global.levels.buffer;
+      // The candle format is: [timestamp, open, high, low, close, volume, (oi)]
+      const price = latestCandle[4]; // 4th index = close price
+
+      if (price === null || price === undefined) {
+        return console.log("Invalid Price");
+      }
+
+      const { bc, tc, r1, r2, r3, r4, s1, s2, s3, s4 } =
+        TradeService.dailyLevel;
+
+      const BUFFER = TradeService.dailyLevel.buffer;
       let signal = "No Action";
       let reason = "Price is in a neutral zone.";
       let direction;
       let assetPrice;
+      let lastTrade = TradeService.lastTrade;
 
       if (price % 100 > 50) {
         assetPrice = parseInt(price / 100) * 100 + 100;
       } else {
         assetPrice = parseInt(price / 100) * 100;
       }
-      console.log(price, assetPrice, data);
 
       // If price is above TC and within TC + BUFFER, Buy
       if (price >= tc && price <= tc + BUFFER) {
@@ -205,19 +229,28 @@ cron.schedule("* * * * * *", async () => {
       }
 
       if (signal === "Exit") {
-        await exitOrder(lastAsset);
-        lastTrade = null;
-        lastAsset = null;
+        await exitOrder(lastTrade.asset);
+        TradeService.lastTrade = null;
+
+        //NOTE: Add a exit db entry
         return;
       }
 
-      const symbol = `SENSEX25603${assetPrice}${direction}`;
+      const symbol = getSpecificCachedOption(
+        TradeService.dailyAsset,
+        assetPrice,
+        direction,
+      );
 
       if (lastTrade) {
-        if (direction === lastTrade) return;
-        await exitOrder(lastAsset);
+        if (direction === lastTrade.direction) return;
+        await exitOrder(lastTrade.asset);
+        // NOTE: Add exit entry in db
+
         await newOrder(symbol);
-        lastTrade = direction;
+        //NOTE: Add new entry in db
+
+        lastTrade = direction;  //NOTE: Assign new trade here
         lastAsset = symbol;
       } else {
         await newOrder(symbol);

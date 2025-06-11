@@ -13,9 +13,11 @@ import requestSessionMiddleware from "#middlewares/requestSession";
 
 const server = express();
 
-main()
-  .then((d) => console.log(d))
-  .catch((e) => console.log(e));
+try {
+  await main();
+} catch (e) {
+  console.log(e);
+}
 
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();
