@@ -20,6 +20,7 @@ class TradeService extends BaseService {
 
   static dailyAsset = null;
   static keys = null;
+  static adminKey = null;
   static dailyAssetToken = null;
 }
 
@@ -47,6 +48,7 @@ cron.schedule("* * * * * *", async () => {
       (hour > 7 && hour < 15) ||
       (hour === 15 && minute <= 30);
 
+    // NOTE: Change this to minute
     if (preRange && second % 1 === 0 /*&& second === 40*/) {
       if (!TradeService.dailyAsset) {
         const day = TradeService.dayMap[now.getDay()];
@@ -57,7 +59,7 @@ cron.schedule("* * * * * *", async () => {
             include: [
               {
                 model: Asset,
-                attributes: ["id", "name"],
+                attributes: ["id", "name", "zerodhaToken"],
               },
             ],
             allowNull: false,
@@ -67,26 +69,28 @@ cron.schedule("* * * * * *", async () => {
         TradeService.dailyAsset = dailyAsset.Asset.name;
         TradeService.dailyAssetToken = dailyAsset.Asset.zerodhaToken;
       }
+
+      const keys = await BrokerKeyService.Model.findAll({
+        where: { status: true },
+        include: [
+          {
+            model: Broker,
+            attributes: ["id", "name"],
+          },
+          {
+            model: User,
+            attributes: ["id", "role"],
+          },
+        ],
+      });
+
+      TradeService.keys = keys;
+
+      TradeService.adminKey = keys.find((ele) => {
+        return ele.Broker.name === "Zerodha" && ele.User.role === "admin";
+      });
+
     }
-
-    const keys = await BrokerKeyService.Model.findAll({
-      where: { status: true },
-      include: [
-        {
-          model: Broker,
-          attributes: ["id", "name"],
-        },
-        {
-          model: User,
-          attributes: ["id", "role"],
-        },
-      ],
-    });
-
-    TradeService.keys = keys.find((ele) => {
-      return ele.Broker.name === "Zerodha" && ele.User.role === "admin";
-    });
-
     if (isInRange /**&& minute % 3 === 0 && second === 0*/) {
       const formatDate = (dateObj) => {
         const y = dateObj.getUTCFullYear();
@@ -102,8 +106,8 @@ cron.schedule("* * * * * *", async () => {
 
       const instrumentToken = TradeService.dailyAssetToken;
       const interval = "3minute";
-      const apiKey = TradeService.keys.apiKey;
-      const accessToken = TradeService.keys.token;
+      const apiKey = TradeService.adminKey.apiKey;
+      const accessToken = TradeService.adminKey.token;
 
       const url = `https://api.kite.trade/instruments/historical/${instrumentToken}/${interval}?from=${encodeURIComponent(fromTime)}&to=${encodeURIComponent(toTime)}&continuous=false`;
 

@@ -1,4 +1,5 @@
 import cors from "cors";
+import { main } from "#utils/assetChecker";
 import multer from "multer";
 import morgan from "morgan";
 import express from "express";
@@ -11,6 +12,10 @@ import { globalErrorHandler } from "#utils/error";
 import requestSessionMiddleware from "#middlewares/requestSession";
 
 const server = express();
+
+main()
+  .then((d) => console.log(d))
+  .catch((e) => console.log(e));
 
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();

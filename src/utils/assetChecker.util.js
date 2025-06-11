@@ -1,7 +1,9 @@
 import path from "path";
 import axios from "axios";
+import cron from "node-cron";
 import { parse } from "csv-parse";
 import { fileURLToPath } from "url";
+import moment from "moment-timezone";
 import { createWriteStream } from "fs";
 import { readFile, writeFile, unlink } from "fs/promises";
 
@@ -178,7 +180,7 @@ export function getSpecificCachedOption(indexKey, strikePrice, direction) {
   );
 }
 
-async function main() {
+export async function main() {
   const downloadSuccess = await downloadInstrumentsFile();
   if (!downloadSuccess) {
     console.log("Skipping processing due to download failure.");
@@ -210,35 +212,20 @@ async function main() {
 
   await writeFile(OUTPUT_JSON_PATH, JSON.stringify(appCache, null, 2));
   console.log(`\nCached options written to ${OUTPUT_JSON_PATH}`);
-
-  console.log(`\n--- Example lookups ---`);
-  const strikeNifty = appCache.NIFTY[0]?.strike;
-  if (strikeNifty) {
-    const opt = getSpecificCachedOption("NIFTY", strikeNifty, "CE");
-    console.log(
-      opt
-        ? `NIFTY ${strikeNifty} CE: ${opt.tradingsymbol}`
-        : "NIFTY CE not found.",
-    );
-  }
-
-  const strikeSensex = appCache.SENSEX[0]?.strike;
-  if (strikeSensex) {
-    const opt = getSpecificCachedOption("SENSEX", strikeSensex, "PE");
-    console.log(
-      opt
-        ? `SENSEX ${strikeSensex} PE: ${opt.tradingsymbol}`
-        : "SENSEX PE not found.",
-    );
-  }
-
-  const customStrike = 23000;
-  const customOpt = getSpecificCachedOption("NIFTY", customStrike, "CE");
-  console.log(
-    customOpt
-      ? `Custom strike NIFTY ${customStrike} CE: ${customOpt.tradingsymbol}`
-      : `No NIFTY CE found for strike ${customStrike}`,
-  );
 }
 
-// main().catch((err) => console.error("Unhandled error in main:", err));
+const getCurrentISTTime = () =>
+  moment().tz("Asia/Kolkata").format("YYYY-MM-DD HH:mm:ss [IST]");
+
+cron.schedule(
+  "0 7 * * *",
+  async () => {
+    console.log(`Cron job triggered at ${getCurrentISTTime()}`);
+    await main();
+    console.log("Daily task executed successfully!");
+  },
+  {
+    scheduled: true,
+    timezone: "Asia/Kolkata",
+  },
+);

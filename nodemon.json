@@ -5,7 +5,9 @@
   ],
   "ext": "js,json,env",
   "ignore": [
-    "dist"
+    "dist",
+    "src/utils/immediate_expiry_options.json",
+    "src/utils/instruments_downloaded.csv"
   ],
   "exec": "node src/index.js"
 }
