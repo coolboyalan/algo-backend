@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import moment from "moment-timezone";
 import { createWriteStream } from "fs";
 import { readFile, writeFile, unlink } from "fs/promises";
+import Asset from "#models/asset";
 
 // Helper to get __dirname in ES modules
 const __filename = fileURLToPath(import.meta.url);
@@ -20,22 +21,7 @@ const appCache = {
   SENSEX: [],
 };
 
-export const INDEX_CONFIGS = {
-  NIFTY: {
-    displayName: "NIFTY50",
-    csvName: "NIFTY",
-    csvExchange: "NFO",
-    csvSymbolPrefix: "NIFTY",
-    excludeSymbolPrefixes: ["NIFTYNXT", "NIFTYMID", "NIFTYFIN", "NIFTYBANK"],
-  },
-  SENSEX: {
-    displayName: "SENSEX",
-    csvName: "SENSEX",
-    csvExchange: "BFO",
-    csvSymbolPrefix: "SENSEX",
-    excludeSymbolPrefixes: [],
-  },
-};
+const INDEX_CONFIGS = Asset.INDEX_CONFIGS;
 
 async function downloadInstrumentsFile() {
   console.log(`Starting download from ${INSTRUMENTS_URL}...`);

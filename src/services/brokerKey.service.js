@@ -12,44 +12,38 @@ class BrokerKeyService extends BaseService {
 
     const broker = await BrokerService.getDoc({ id: data.brokerId });
 
-    if (broker.name !== "Zerodha") {
-      throw new AppError({
-        status: false,
-        message: "Brokers other than zerodha are disabled for now",
-        httpStatus: httpStatus.BAD_REQUEST,
-      });
+    if (broker.name === "Zerodha") {
+      data.loginUrl = `https://kite.trade/connect/login?api_key=${data.apiKey}`;
+      data, (redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`);
+    } else if (broker.name === "Upstox") {
+      data.redirectUrl = `${env.DOMAIN}/api/upstox/login/${data.userId}`;
+      data.loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?client_id=${data.apiKey}&redirect_uri=${encodeURIComponent(data.redirectUrl)}&response_type=code`;
     }
-
-    const loginUrl = `https://kite.trade/connect/login?api_key=${data.apiKey}`;
-    const redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`;
-
-    data.loginUrl = loginUrl;
-    data.redirectUrl = redirectUrl;
 
     return await super.create(data);
   }
 
   static async update(id, data) {
     delete data.status;
-    delete data.status;
 
-    const broker = await BrokerService.getDoc({ id: data.brokerId });
+    const existingKey = await this.getDocById(id);
+    existingKey.updateFields(data);
 
-    if (broker.name !== "Zerodha") {
-      throw new AppError({
-        status: false,
-        message: "Brokers other than zerodha are disabled for now",
-        httpStatus: httpStatus.BAD_REQUEST,
-      });
+    const broker = await BrokerService.getDoc({
+      id: Number(existingKey.brokerId),
+    });
+
+    if (broker.name === "Zerodha") {
+      existingKey.loginUrl = `https://kite.trade/connect/login?api_key=${existingKey.apiKey}`;
+      existingKey.redirectUrl = `${env.DOMAIN}/api/kite/login/${existingKey.id}`;
+    } else if (broker.name === "Upstox") {
+      existingKey.redirectUrl = `${env.DOMAIN}/api/upstox/login/${existingKey.id}`;
+      existingKey.loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?client_id=${existingKey.apiKey}&redirect_uri=${encodeURIComponent(existingKey.redirectUrl)}&response_type=code`;
     }
 
-    const loginUrl = `https://kite.trade/connect/login?api_key=${data.apiKey}`;
-    const redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`;
+    await existingKey.save();
 
-    data.loginUrl = loginUrl;
-    data.redirectUrl = redirectUrl;
-
-    return await super.update(id, data);
+    return existingKey;
   }
 }
 

@@ -14,14 +14,14 @@ import requestSessionMiddleware from "#middlewares/requestSession";
 const server = express();
 
 try {
-  await main();
+  // await main();
 } catch (e) {
   console.log(e);
 }
 
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();
-await sequelize.sync({ alter: true });
+// await sequelize.sync({ alter: true });
 
 //Request logging middleware
 server.use(morgan(logger));

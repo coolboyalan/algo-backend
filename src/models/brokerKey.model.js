@@ -31,6 +31,11 @@ BrokerKey.initialize(
       type: DataTypes.TEXT,
       allowNull: false,
     },
+    clientId: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      defaultValue: "Client",
+    },
     token: {
       type: DataTypes.TEXT,
       allowNull: true,
