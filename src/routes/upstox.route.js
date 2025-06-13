@@ -6,6 +6,7 @@ import BrokerKeyService from "#services/brokerKey";
 import { session } from "#middlewares/requestSession";
 import { sendResponse } from "#utils/response";
 import httpStatus from "http-status";
+import { isWithinTradingHoursIST } from "#utils/dayChecker";
 
 const router = express.Router();
 
@@ -13,6 +14,13 @@ router.route("/login/:id?").get(
   asyncHandler(async function (req, res, next) {
     const { code, state } = req.query;
     const { id } = req.params;
+
+    if (!isWithinTradingHoursIST()) {
+      return res.status(400).json({
+        status: false,
+        message: "Please login on a weekday after 8:30 AM and before 3:00 PM",
+      });
+    }
 
     const key = await BrokerKeyService.getDoc({
       id,
