@@ -14,7 +14,7 @@ export function isWithinTradingHoursIST() {
 
   const totalMinutes = hours * 60 + minutes;
 
-  const startMinutes = 8 * 60 + 30; // 8:30 AM IST
+  const startMinutes = 8 * 60; // 8:30 AM IST
   const endMinutes = 15 * 60; // 3:00 PM IST
 
   return totalMinutes >= startMinutes && totalMinutes <= endMinutes;
