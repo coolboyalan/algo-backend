@@ -98,7 +98,7 @@ export async function getLastTradingDayOHLC({
         if (response.ok && data.data?.candles?.length > 0) {
           const [dateTime, open, high, low, close] = data.data.candles[0];
           return {
-            date: new Date(dateTime).toLocaleDateString("en-IN"),
+            date: getISTDate(date),
             open,
             high,
             low,
