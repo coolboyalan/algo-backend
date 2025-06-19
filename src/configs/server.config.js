@@ -23,7 +23,7 @@ try {
 await sequelize.authenticate();
 // await sequelize.sync({ alter: true });
 
-//Request logging middleware
+// Request logging middleware
 server.use(morgan(logger));
 server.use(cors());
 // Middleware to parse incoming JSON request bodies

@@ -12,7 +12,7 @@ const router = express.Router();
 
 router.route("/login/:id?").get(
   asyncHandler(async function (req, res, next) {
-    const { code, state } = req.query;
+    const { code } = req.query;
     const { id } = req.params;
 
     if (!isWithinTradingHoursIST()) {
@@ -22,14 +22,12 @@ router.route("/login/:id?").get(
       });
     }
 
-    const key = await BrokerKeyService.getDoc({
-      id,
-    });
-
+    const key = await BrokerKeyService.getDoc({ id });
     if (!code) return res.status(400).send("Authorization code not provided");
 
     session.set("transaction", await sequelize.transaction());
 
+    // Step 1: Get Access Token
     const tokenRes = await axios.post(
       "https://api.upstox.com/v2/login/authorization/token",
       new URLSearchParams({
@@ -47,11 +45,26 @@ router.route("/login/:id?").get(
       },
     );
 
-    const { access_token, refresh_token, expires_at } = tokenRes.data;
+    const { access_token } = tokenRes.data;
     key.token = access_token;
     key.status = true;
 
+    // Step 2: Fetch Equity Funds Only
+    const fundsRes = await axios.get(
+      "https://api.upstox.com/v2/user/get-funds-and-margin?segment=SEC", // Only Equity
+      {
+        headers: {
+          Authorization: `Bearer ${access_token}`,
+          Accept: "application/json",
+        },
+      },
+    );
+
+    const equity = fundsRes.data?.data?.equity || {};
+
+    key.balance = equity.available_margin;
     await key.save();
+
     sendResponse(httpStatus.OK, res, null, "Logged in successfully");
   }),
 );

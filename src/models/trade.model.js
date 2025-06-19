@@ -3,6 +3,7 @@ import Asset from "#models/asset";
 import Broker from "#models/broker";
 import BaseModel from "#models/base";
 import { DataTypes } from "sequelize";
+import TradeLog from "#models/tradeLog";
 
 class Trade extends BaseModel {}
 

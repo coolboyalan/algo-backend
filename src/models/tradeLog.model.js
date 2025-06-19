@@ -45,7 +45,7 @@ TradeLog.initialize({
     allowNull: false,
   },
   direction: {
-    type: DataTypes.ENUM("buy", "sell"),
+    type: DataTypes.ENUM("CE", "PE"),
     allowNull: false,
   },
   quantity: {
