@@ -10,6 +10,7 @@ const env = cleanEnv(process.env, {
   DB_USER: str(),
   DB_PASS: str(),
   DB_HOST: str(),
+DB_PORT:num(),
   DB_DIALECT: str(),
   AWS_S3_KEY: str(),
   AWS_S3_SECRET: str(),
