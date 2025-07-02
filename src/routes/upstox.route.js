@@ -15,7 +15,7 @@ router.route("/login/:id?").get(
     const { code } = req.query;
     const { id } = req.params;
 
-    if (!!isWithinTradingHoursIST()) {
+    if (!isWithinTradingHoursIST()) {
       return res.status(400).json({
         status: false,
         message: "Please login on a weekday after 8:30 AM and before 3:00 PM",
