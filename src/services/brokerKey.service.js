@@ -14,7 +14,7 @@ class BrokerKeyService extends BaseService {
 
     if (broker.name === "Zerodha") {
       data.loginUrl = `https://kite.trade/connect/login?api_key=${data.apiKey}`;
-      data.redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`);
+      data.redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`;
     } else if (broker.name === "Upstox") {
       data.redirectUrl = `${env.DOMAIN}/api/upstox/login/${data.userId}`;
       data.loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?client_id=${data.apiKey}&redirect_uri=${encodeURIComponent(data.redirectUrl)}&response_type=code`;
