@@ -22,6 +22,7 @@ export async function authentication(req, res, next) {
     session.set("userType", payload.userType);
     session.set("payload", payload);
     session.set("userId", payload.userId);
+    session.set("role", payload.role);
 
     next();
   } catch (err) {

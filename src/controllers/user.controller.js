@@ -25,7 +25,10 @@ class UserController extends BaseController {
         userId: user.id,
         email: user.email,
         name: user.name,
+        role: user.role,
       };
+
+      console.log(user.toJSON());
 
       const token = createToken(payload);
 
@@ -35,6 +38,7 @@ class UserController extends BaseController {
         token,
         name: user.name,
         email: user.email,
+        role: user.role,
       });
     } catch (err) {
       next(err);

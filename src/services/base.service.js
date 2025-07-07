@@ -138,7 +138,7 @@ class BaseService {
 
   static async get(id, filters = {}, queryOptionsPassed = {}) {
     // queryOptionsPassed is typically the result from an external call to getOptions
-    if (!this.Model) {
+    if (!this.Model && this.Model !== null) {
       throw new Error(
         "BaseService.Model is not defined. Please set it in the subclass.",
       );
