@@ -15,6 +15,13 @@ class BrokerKeyController extends BaseController {
     return await super.create(req, res, next);
   }
 
+  static async stop(req, res, next) {
+    const doc = await BrokerKeyService.getDocById(req.params.id);
+    doc.status = false;
+    await doc.save();
+    sendResponse(httpStatus.OK, res, null, "Deactived successfully");
+  }
+
   static async update(req, res, next) {
     const userId = session.get("userId");
     req.body.userId = userId;
