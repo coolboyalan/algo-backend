@@ -95,6 +95,8 @@ async function getDashboardData({ userId }) {
         totalTrades: parseInt(aggregates.totalTradesForBroker) || 0, // Numerical count
         winningTrades: parseInt(aggregates.winningTradesForBroker) || 0, // Numerical count
         currency: bk.Broker?.currency || "INR", // Currency from Broker model or default
+        loginUrl: bk.loginUrl,
+        inactiveUrl: bk.loginUrl,
       };
     });
 
