@@ -5,6 +5,7 @@ import User from "#models/user";
 import { sendResponse } from "#utils/response";
 import httpStatus from "http-status";
 import Broker from "#models/broker";
+import BrokerService from "#services/broker";
 
 class BrokerKeyController extends BaseController {
   static Service = BrokerKeyService;
@@ -16,10 +17,31 @@ class BrokerKeyController extends BaseController {
   }
 
   static async stop(req, res, next) {
-    const doc = await BrokerKeyService.getDocById(req.params.id);
-    doc.status = false;
-    await doc.save();
-    sendResponse(httpStatus.OK, res, null, "Deactived successfully");
+    try {
+      const { id } = req.params;
+      const brokerKey = await BrokerKeyService.getDo(
+        { id },
+        {
+          include: [
+            {
+              model: BrokerService.Model,
+            },
+          ],
+        },
+      );
+      const response = await axios.post(
+        brokerKey.Broker.name === "Zerodha"
+          ? `http://localhost:3002/stop/${id}`
+          : `http://localhost:3003/stop/${id}`,
+        payload,
+      );
+      if (response.data.status === 200) {
+        return sendResponse(httpStatus.OK, res, null, "Deactived successfully");
+      }
+      return sendResponse(400, res, null, "Request failed");
+    } catch (error) {
+      sendResponse(500, res, null, "Internal Server Error");
+    }
   }
 
   static async update(req, res, next) {
