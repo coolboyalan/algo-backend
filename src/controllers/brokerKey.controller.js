@@ -20,29 +20,45 @@ class BrokerKeyController extends BaseController {
 
   static async stop(req, res, next) {
     try {
+      console.log(true);
       const { id } = req.params;
-      const brokerKey = await BrokerKeyService.getDoc(
-        { id },
-        {
-          include: [
+      const brokerKey = id
+        ? await BrokerKeyService.getDoc(
+            { id },
             {
-              model: BrokerService.Model,
+              include: [
+                {
+                  model: BrokerService.Model,
+                },
+              ],
             },
-          ],
-        },
-      );
-      const response = await axios.post(
-        brokerKey.Broker.name === "Zerodha"
-          ? `http://localhost:3002/stop/${id}`
-          : `http://localhost:3003/stop/${id}`,
-        {},
-      );
-      console.log(response.data);
-      if (response.data.status === true) {
+          )
+        : { Broker: { name: "Both" } };
+
+      if (!id && brokerKey.Broker.name === "Both") {
+        const requestOne = await axios.post("http://localhost:3002/stop/", {});
+        const requestTwo = await axios.post("http://localhost:3003/stop", {});
         return sendResponse(httpStatus.OK, res, null, "Deactived successfully");
+      } else {
+        const response = await axios.post(
+          brokerKey.Broker.name === "Zerodha"
+            ? `http://localhost:3002/stop/${id ?? ""}`
+            : `http://localhost:3003/stop/${id ?? ""}`,
+          {},
+        );
+        console.log(response.data);
+        if (response.data.status === true) {
+          return sendResponse(
+            httpStatus.OK,
+            res,
+            null,
+            "Deactived successfully",
+          );
+        }
+        return sendResponse(400, res, null, "Request failed");
       }
-      return sendResponse(400, res, null, "Request failed");
     } catch (error) {
+      console.log(error);
       sendResponse(500, res, null, "Internal Server Error");
     }
   }

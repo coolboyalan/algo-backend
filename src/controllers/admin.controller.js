@@ -77,6 +77,11 @@ class AdminController extends BaseController {
     const brokerKey = await BrokerKeyService.update(id, req.body);
     sendResponse(httpStatus.OK, res, brokerKey);
   }
+
+  static async createBrokerKey(req, res, next) {
+    const brokerKey = await BrokerKeyService.create(req.body);
+    sendResponse(httpStatus.OK, res, brokerKey);
+  }
 }
 
 export default AdminController;

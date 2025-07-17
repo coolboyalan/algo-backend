@@ -8,7 +8,7 @@ const router = express.Router();
 router.use(authentication);
 
 router
-  .route("/stop/:id")
+  .route("/stop/:id?")
   .put(asyncHandler(BrokerKeyController.stop.bind(BrokerKeyController)));
 
 router

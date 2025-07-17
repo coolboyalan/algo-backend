@@ -10,6 +10,7 @@ router.use(authentication);
 router
   .route("/broker-key/:id?")
   .get(asyncHandler(AdminController.getBrokerKey.bind(AdminController)))
+  .post(asyncHandler(AdminController.createBrokerKey.bind(AdminController)))
   .put(asyncHandler(AdminController.updateBrokerKey.bind(AdminController)));
 
 router
