@@ -7,7 +7,7 @@ const sequelize = new Sequelize(env.DB_NAME, env.DB_USER, env.DB_PASS, {
   dialect: env.DB_DIALECT,
   logging: false,
   pool: {
-    max: 20,
+    max: 80,
     min: 2,
     acquire: 30000, // how long to wait for a connection before throwing error
     idle: 5000, // reduce to recycle idle connections more frequently
