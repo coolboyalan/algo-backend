@@ -7,18 +7,47 @@ import BrokerService from "#services/broker";
 class BrokerKeyService extends BaseService {
   static Model = BrokerKey;
 
+  static getLoginConfig(brokerName, apiKey, userIdOrKeyId) {
+    const domain = env.DOMAIN;
+
+    switch (brokerName) {
+      case "Zerodha":
+        return {
+          loginUrl: `https://kite.trade/connect/login?api_key=${apiKey}`,
+          redirectUrl: `${domain}/api/kite/login/${userIdOrKeyId}`,
+        };
+
+      case "Upstox":
+        const upstoxRedirect = `${domain}/api/upstox/login/${userIdOrKeyId}`;
+        return {
+          loginUrl: `https://api.upstox.com/v2/login/authorization/dialog?client_id=${apiKey}&redirect_uri=${encodeURIComponent(upstoxRedirect)}&response_type=code`,
+          redirectUrl: upstoxRedirect,
+        };
+
+      case "Angel One":
+        const angelRedirect = `${domain}/api/angelone/login/${userIdOrKeyId}`;
+        return {
+          loginUrl: `https://smartapi.angelone.in/publisher-login?api_key=${apiKey}&state=${userIdOrKeyId}`,
+          redirectUrl: angelRedirect,
+        };
+
+      default:
+        return {};
+    }
+  }
+
   static async create(data) {
     delete data.status;
 
     const broker = await BrokerService.getDoc({ id: data.brokerId });
+    const { loginUrl, redirectUrl } = this.getLoginConfig(
+      broker.name,
+      data.apiKey,
+      data.userId,
+    );
 
-    if (broker.name === "Zerodha") {
-      data.loginUrl = `https://kite.trade/connect/login?api_key=${data.apiKey}`;
-      data.redirectUrl = `${env.DOMAIN}/api/kite/login/${data.userId}`;
-    } else if (broker.name === "Upstox") {
-      data.redirectUrl = `${env.DOMAIN}/api/upstox/login/${data.userId}`;
-      data.loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?client_id=${data.apiKey}&redirect_uri=${encodeURIComponent(data.redirectUrl)}&response_type=code`;
-    }
+    data.loginUrl = loginUrl;
+    data.redirectUrl = redirectUrl;
 
     return await super.create(data);
   }
@@ -32,17 +61,16 @@ class BrokerKeyService extends BaseService {
     const broker = await BrokerService.getDoc({
       id: Number(existingKey.brokerId),
     });
+    const { loginUrl, redirectUrl } = this.getLoginConfig(
+      broker.name,
+      existingKey.apiKey,
+      existingKey.id,
+    );
 
-    if (broker.name === "Zerodha") {
-      existingKey.loginUrl = `https://kite.trade/connect/login?api_key=${existingKey.apiKey}`;
-      existingKey.redirectUrl = `${env.DOMAIN}/api/kite/login/${existingKey.id}`;
-    } else if (broker.name === "Upstox") {
-      existingKey.redirectUrl = `${env.DOMAIN}/api/upstox/login/${existingKey.id}`;
-      existingKey.loginUrl = `https://api.upstox.com/v2/login/authorization/dialog?client_id=${existingKey.apiKey}&redirect_uri=${encodeURIComponent(existingKey.redirectUrl)}&response_type=code`;
-    }
+    existingKey.loginUrl = loginUrl;
+    existingKey.redirectUrl = redirectUrl;
 
     await existingKey.save();
-
     return existingKey;
   }
 }
