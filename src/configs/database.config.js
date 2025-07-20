@@ -7,10 +7,11 @@ const sequelize = new Sequelize(env.DB_NAME, env.DB_USER, env.DB_PASS, {
   dialect: env.DB_DIALECT,
   logging: false,
   pool: {
-    max: 20, // increase this based on your DB's max_connections
+    max: 20,
     min: 2,
-    acquire: 30000, // how long Sequelize will try to get a connection (ms)
-    idle: 10000, // how long a connection can stay idle before being released
+    acquire: 30000, // how long to wait for a connection before throwing error
+    idle: 5000, // reduce to recycle idle connections more frequently
+    evict: 10000, // optional: remove idle connections after this time
   },
 });
 
