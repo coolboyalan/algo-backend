@@ -1,15 +1,11 @@
 import axios from "axios";
 import express from "express";
-import crypto from "node:crypto";
 import httpStatus from "http-status";
 import AppError from "#utils/appError";
 import sequelize from "#configs/database";
-import AssetService from "#services/asset";
 import asyncHandler from "#utils/asyncHandler";
 import { sendResponse } from "#utils/response";
 import BrokerKeyService from "#services/brokerKey";
-import DailyAssetService from "#services/dailyAsset";
-import DailyLevelService from "#services/dailyLevel";
 import { session } from "#middlewares/requestSession";
 import { isWithinTradingHoursIST } from "#utils/dayChecker";
 
@@ -17,20 +13,19 @@ const router = express.Router();
 
 router.route("/login/:id?").get(
   asyncHandler(async function login(req, res, next) {
-    const { request_token } = req.query;
+    const { auth_token, feed_token, state } = req.query;
     const { id } = req.params;
 
     // Validate trading hours
     if (!isWithinTradingHoursIST()) {
       return res.status(400).json({
         status: false,
-        message: "Please login on a weekday after 8:30 AM and before 3:00 PM",
       });
     }
 
-    if (!request_token) {
+    if (!auth_token || !feed_token) {
       return res.status(401).json({
-        error: "Invalid or missing request token. Please login again",
+        error: "Invalid or missing auth tokens. Please login again",
       });
     }
 
@@ -38,90 +33,61 @@ router.route("/login/:id?").get(
       id,
     });
 
-    // Step 1: Generate checksum for session exchange
-    const checksum = crypto
-      .createHash("sha256")
-      .update(brokerKey.apiKey + request_token + brokerKey.apiSecret)
-      .digest("hex");
 
-    // Step 2: Exchange request_token for access_token
-    const sessionResponse = await axios.post(
-      "https://api.kite.trade/session/token",
-      new URLSearchParams({
-        api_key: brokerKey.apiKey,
-        request_token,
-        checksum,
-      }),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-      },
-    );
-
-    const sessionData = sessionResponse.data.data;
-    const accessToken = sessionData.access_token;
-
-    // Step 3: Fetch user profile
+    // Step 1: Get user profile using auth_token as JWT token
     const profileResponse = await axios.get(
-      "https://api.kite.trade/user/profile",
+      "https://apiconnect.angelone.in/rest/secure/angelbroking/user/v1/getProfile",
       {
         headers: {
-          Authorization: `token ${brokerKey.apiKey}:${accessToken}`,
+          Authorization: `Bearer ${auth_token}`,
+          "Content-Type": "application/json",
+          Accept: "application/json",
+          "X-UserType": "USER",
+          "X-SourceID": "WEB",
+          "X-ClientLocalIP": req.ip || "127.0.0.1",
+          "X-ClientPublicIP": req.ip || "127.0.0.1",
+          "X-MACAddress": "MAC_ADDRESS",
+          "X-PrivateKey": brokerKey.apiKey,
         },
       },
     );
+
+    if (!profileResponse.data.status) {
+      throw new AppError({
+        status: false,
+        message: "Failed to fetch user profile from AngelOne",
+        httpStatus: httpStatus.BAD_REQUEST,
+      });
+    }
 
     const profile = profileResponse.data.data;
 
     if (!profile) {
       throw new AppError({
         status: false,
-        message: "Zerodha is down",
+        message: "AngelOne is down or profile unavailable",
         httpStatus: httpStatus.BAD_REQUEST,
       });
     }
 
-    const dayMap = {
-      1: "Monday",
-      2: "Tuesday",
-      3: "Wednesday",
-      4: "Thursday",
-      5: "Friday",
-    };
-
-    const now = new Date();
-    const day = dayMap[now.getDay()];
-
-    const asset = await DailyAssetService.getDoc(
-      { day },
-      {
-        include: [
-          {
-            model: AssetService.Model,
-          },
-        ],
-      },
-    );
-
-    const assetToken = asset.Asset.zerodhaToken;
-
+    // Step 2: Update broker key with new tokens
     session.set("transaction", await sequelize.transaction());
-
-    brokerKey.token = accessToken;
+    brokerKey.token = auth_token; // JWT token for API calls
     brokerKey.tokenDate = new Date();
     brokerKey.status = true;
 
     await brokerKey.save();
 
-    // Step 5: Generate levels and store globally
-    const todayData = await DailyLevelService.create({
-      instrumentToken: assetToken,
-      apiKey: brokerKey.apiKey,
-      accessToken,
-    });
-
-    sendResponse(200, res, { profile, accessToken }, "Login successful");
+    sendResponse(
+      httpStatus.OK,
+      res,
+      {
+        profile,
+        accessToken: auth_token,
+        feedToken: feed_token,
+      },
+      "Login successful",
+    );
   }),
 );
 
