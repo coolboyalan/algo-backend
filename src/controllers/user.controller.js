@@ -2,47 +2,52 @@ import UserService from "#services/user";
 import bcrypt from "bcryptjs";
 import BaseController from "#controllers/base";
 import { createToken } from "#utils/jwt";
+import AppError from "#utils/appError";
+import httpStatus from "http-status";
+import { sendResponse } from "#root/utils/response.util";
 
 class UserController extends BaseController {
   static Service = UserService;
 
   static async login(req, res, next) {
-    try {
-      const { email, password } = req.body;
+    const { email, password } = req.body;
 
-      if (!email || !password) {
-        return res.status(400).send("Email and password are required.");
-      }
-
-      const user = await this.Service.getDoc({ email });
-
-      const isPasswordValid = await bcrypt.compare(password, user.password);
-      if (!isPasswordValid) {
-        return res.status(401).send("Invalid email or password.");
-      }
-
-      const payload = {
-        userId: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      };
-
-      console.log(user.toJSON());
-
-      const token = createToken(payload);
-
-      return res.status(200).json({
-        status: true,
-        message: "Login successful",
-        token,
-        name: user.name,
-        email: user.email,
-        role: user.role,
+    if (!email || !password) {
+      throw new AppError({
+        message: "Email and password are required.",
+        httpStatus: httpStatus.UNAUTHORIZED,
       });
-    } catch (err) {
-      next(err);
     }
+
+    const user = await this.Service.getDoc({ email });
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      throw new AppError({
+        message: "Incorrect Password",
+        httpStatus: httpStatus.UNAUTHORIZED,
+      });
+    }
+
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
+
+    console.log(user.toJSON());
+
+    const token = createToken(payload);
+
+    sendResponse(httpStatus.OK, res, {
+      status: true,
+      message: "Login successful",
+      token,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    });
   }
 }
 
