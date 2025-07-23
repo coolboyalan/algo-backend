@@ -4,7 +4,7 @@ import BaseController from "#controllers/base";
 import { createToken } from "#utils/jwt";
 import AppError from "#utils/appError";
 import httpStatus from "http-status";
-import { sendResponse } from "#root/utils/response.util";
+import { sendResponse } from "#utils/response";
 
 class UserController extends BaseController {
   static Service = UserService;
