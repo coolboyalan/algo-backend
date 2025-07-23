@@ -5,6 +5,7 @@ import { createToken } from "#utils/jwt";
 import AppError from "#utils/appError";
 import httpStatus from "http-status";
 import { sendResponse } from "#utils/response";
+import { session } from "#middlewares/requestSession";
 
 class UserController extends BaseController {
   static Service = UserService;
@@ -40,7 +41,10 @@ class UserController extends BaseController {
 
     const token = createToken(payload);
 
-    sendResponse(httpStatus.OK, res, {
+    const transaction = await session.get("transaction");
+    await transaction.commit();
+
+    return res.status(200).json({
       status: true,
       message: "Login successful",
       token,
