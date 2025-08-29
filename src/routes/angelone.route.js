@@ -33,6 +33,7 @@ router.route("/login/:id?").get(
       id,
     });
 
+    console.log(brokerKey);
 
     // Step 1: Get user profile using auth_token as JWT token
     const profileResponse = await axios.get(
@@ -69,6 +70,8 @@ router.route("/login/:id?").get(
         httpStatus: httpStatus.BAD_REQUEST,
       });
     }
+
+    console.log(true);
 
     // Step 2: Update broker key with new tokens
     session.set("transaction", await sequelize.transaction());

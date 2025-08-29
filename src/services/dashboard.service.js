@@ -1,3 +1,4 @@
+import env from "#configs/env";
 import { Op, fn, col, literal } from "sequelize";
 // Make sure to import your actual initialized Sequelize models
 import Trade from "#models/trade";
@@ -96,7 +97,7 @@ async function getDashboardData({ userId }) {
         winningTrades: parseInt(aggregates.winningTradesForBroker) || 0, // Numerical count
         currency: bk.Broker?.currency || "INR", // Currency from Broker model or default
         loginUrl: bk.loginUrl,
-        inactiveUrl: bk.loginUrl,
+        inactiveUrl: env.BACKEND_URL + "/api/broker-key/stop/" + bk.id,
       };
     });
 
