@@ -17,7 +17,7 @@ router.route("/login/:id?").get(
     const { id } = req.params;
 
     // Validate trading hours
-    if (isWithinTradingHoursIST()) {
+    if (!isWithinTradingHoursIST()) {
       return res.status(400).json({
         status: false,
       });
