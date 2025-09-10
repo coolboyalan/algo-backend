@@ -82,6 +82,14 @@ router.route("/login/:id?").get(
       });
     }
 
+    const balanceData = await axios.get("https://api.kite.trade/user/margins", {
+      headers: {
+        "X-Kite-Version": "3",
+        Authorization: `token ${brokerKey.apiKey}:${accessToken}`,
+      },
+    });
+    const balance = balanceData.data.data.equity.available.opening_balance;
+
     const dayMap = {
       1: "Monday",
       2: "Tuesday",
@@ -111,6 +119,7 @@ router.route("/login/:id?").get(
     brokerKey.token = accessToken;
     brokerKey.tokenDate = new Date();
     brokerKey.status = true;
+    brokerKey.balance = balance;
 
     await brokerKey.save();
 

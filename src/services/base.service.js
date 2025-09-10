@@ -1,26 +1,27 @@
-import {
-  Sequelize,
-  Op,
-  literal,
-  where as sequelizeWhere,
-  cast,
-  col,
-} from "sequelize";
+import { Op, col, cast, where as sequelizeWhere } from "sequelize";
 
 class BaseService {
   static Model = null;
 
+  static async get(id, filters, options = {}) {
+    if (!id) {
+      return await this.Model.find(filters, options);
+    }
+    return await this.Model.findDocById(id);
+  }
+
   static getOptions(queryParams = {}, customOptions = {}) {
     const {
-      page, // Default handled by parseInt/logic below
-      limit, // Default handled by parseInt/logic below
+      page,
+      limit,
       sortBy = "createdAt",
       sortOrder = "DESC",
       search,
       searchIn,
       startDate,
       endDate,
-      pagination, // Destructure the pagination flag
+      pagination,
+      attributes,
     } = queryParams;
 
     const usedKeys = [
@@ -32,20 +33,20 @@ class BaseService {
       "searchIn",
       "startDate",
       "endDate",
-      "pagination", // Add pagination to usedKeys
+      "pagination",
+      "attributes",
     ];
 
     const options = {};
     let applyQueryPagination = true;
 
-    // Check the pagination queryParam
     if (
       pagination === false ||
       (typeof pagination === "string" && pagination.toLowerCase() === "false")
     ) {
       applyQueryPagination = false;
     }
-    options.applyQueryPagination = applyQueryPagination; // Pass this intent along
+    options.applyQueryPagination = applyQueryPagination;
 
     // 1. Pagination options for the query
     if (applyQueryPagination) {
@@ -53,19 +54,29 @@ class BaseService {
       let parsedLimit = parseInt(limit, 10);
 
       if (isNaN(parsedPage) || parsedPage <= 0) parsedPage = 1;
-      if (isNaN(parsedLimit) || parsedLimit <= 0) parsedLimit = 10; // Default limit
+      if (isNaN(parsedLimit) || parsedLimit <= 0) parsedLimit = 10;
 
       options.limit = parsedLimit;
       options.offset = (parsedPage - 1) * parsedLimit;
     }
-    // If applyQueryPagination is false, options.limit and options.offset are NOT set.
 
     // 2. Sorting
     if (sortBy) {
-      const sortField = sortBy.includes(".")
-        ? col(sortBy)
-        : [sortBy, sortOrder.toUpperCase()];
-      options.order = [[...[].concat(sortField)]]; // Handles if sortField is an array or single item
+      const sortFields = Array.isArray(sortBy) ? sortBy : [sortBy];
+      const sortOrders = Array.isArray(sortOrder) ? sortOrder : [sortOrder];
+
+      options.order = sortFields.map((field, index) => {
+        const order = (
+          sortOrders[index] ||
+          sortOrders[0] ||
+          "DESC"
+        ).toUpperCase();
+
+        if (field.includes(".")) {
+          return [col(field), order];
+        }
+        return [field, order];
+      });
     }
 
     // 3. Searching/Filtering
@@ -79,13 +90,8 @@ class BaseService {
             .filter((f) => f.length > 0);
 
       if (searchFields.length > 0 && Op && col && cast && sequelizeWhere) {
-        // Ensure Op and helpers are defined
         searchWhere[Op.or] = searchFields.map((field) => {
-          const isNumeric = [
-            "id",
-            "someIntegerField",
-            "someNumericField",
-          ].includes(field);
+          const isNumeric = ["id"].includes(field);
 
           if (field.includes(".")) {
             return sequelizeWhere(cast(col(field), "TEXT"), {
@@ -110,7 +116,11 @@ class BaseService {
     if (startDate || endDate) {
       dateWhere.createdAt = {};
       if (startDate && Op) dateWhere.createdAt[Op.gte] = new Date(startDate);
-      if (endDate && Op) dateWhere.createdAt[Op.lte] = new Date(endDate); // Consider end of day for endDate if needed
+      if (endDate && Op) {
+        const endOfDay = new Date(endDate);
+        endOfDay.setHours(23, 59, 59, 999);
+        dateWhere.createdAt[Op.lte] = endOfDay;
+      }
     }
 
     // 5. Clean queryParams of used fields
@@ -119,43 +129,197 @@ class BaseService {
       delete remainingQueryParams[key];
     });
 
-    // 6. Merge filters
+    // 6. Handle nested filtering (NEW IMPLEMENTATION)
+    const nestedFilters = {};
+    const regularFilters = {};
+
+    Object.keys(remainingQueryParams).forEach((key) => {
+      if (key.includes(".")) {
+        // Handle nested filters like "brand.name", "category.type", etc.
+        nestedFilters[key] = remainingQueryParams[key];
+      } else {
+        // Regular filters for main model
+        regularFilters[key] = remainingQueryParams[key];
+      }
+    });
+
+    // 7. Build where clause with nested include filtering
     const where = {
       ...searchWhere,
       ...dateWhere,
-      ...remainingQueryParams, // Allow direct key filtering from remaining queryParams
+      ...regularFilters,
     };
 
-    if (Object.keys(where).length > 0) {
-      options.where = where;
+    // Add nested where conditions using Sequelize's col() function
+    if (Object.keys(nestedFilters).length > 0) {
+      Object.keys(nestedFilters).forEach((nestedKey) => {
+        const value = nestedFilters[nestedKey];
+
+        // Handle different comparison operators
+        if (typeof value === "string" && value.includes("*")) {
+          // Wildcard search: brand.name=*Nike*
+          const searchValue = value.replace(/\*/g, "%");
+          where[Op.and] = where[Op.and] || [];
+          where[Op.and].push(
+            sequelizeWhere(col(nestedKey), {
+              [Op.iLike]: searchValue,
+            }),
+          );
+        } else if (typeof value === "string" && value.startsWith(">")) {
+          // Greater than: price=>100
+          const numValue = parseFloat(value.substring(1));
+          if (!isNaN(numValue)) {
+            where[Op.and] = where[Op.and] || [];
+            where[Op.and].push(
+              sequelizeWhere(col(nestedKey), {
+                [Op.gt]: numValue,
+              }),
+            );
+          }
+        } else if (typeof value === "string" && value.startsWith("<")) {
+          // Less than: price=<500
+          const numValue = parseFloat(value.substring(1));
+          if (!isNaN(numValue)) {
+            where[Op.and] = where[Op.and] || [];
+            where[Op.and].push(
+              sequelizeWhere(col(nestedKey), {
+                [Op.lt]: numValue,
+              }),
+            );
+          }
+        } else if (Array.isArray(value)) {
+          // Array values: brand.id=[1,2,3]
+          where[Op.and] = where[Op.and] || [];
+          where[Op.and].push(
+            sequelizeWhere(col(nestedKey), {
+              [Op.in]: value,
+            }),
+          );
+        } else {
+          // Exact match: brand.name=Nike
+          where[Op.and] = where[Op.and] || [];
+          where[Op.and].push(
+            sequelizeWhere(col(nestedKey), {
+              [Op.eq]: value,
+            }),
+          );
+        }
+      });
     }
 
-    // 7. Merge with custom options (custom options override defaults)
+    options.where = where;
+
+    // 8. Handle attributes (selective column fetching)
+    if (attributes) {
+      let requestedAttributes = [];
+
+      if (typeof attributes === "string") {
+        requestedAttributes = attributes
+          .split(",")
+          .map((attr) => attr.trim())
+          .filter((attr) => attr.length > 0);
+      } else if (Array.isArray(attributes)) {
+        requestedAttributes = attributes;
+      }
+
+      if (requestedAttributes.length > 0 && this.Model) {
+        const modelAttributes = Object.keys(this.Model.rawAttributes || {});
+        const validAttributes = requestedAttributes.filter((attr) => {
+          if (attr.includes(".")) {
+            return true; // Allow nested attributes
+          }
+          return modelAttributes.includes(attr);
+        });
+
+        if (validAttributes.length > 0) {
+          options.attributes = validAttributes;
+        } else {
+          console.warn(
+            `Warning: None of the requested attributes [${requestedAttributes.join(", ")}] exist in model. Fetching all columns.`,
+          );
+        }
+      }
+    }
+
+    // 9. Enhanced include handling with nested where conditions
+    if (customOptions.include && Object.keys(nestedFilters).length > 0) {
+      options.include = this.enhanceIncludesWithWhere(
+        customOptions.include,
+        nestedFilters,
+      );
+    }
+
+    // 10. Merge with custom options (custom options override defaults)
     Object.assign(options, customOptions);
 
     return options;
   }
 
+  // Helper method to enhance includes with where conditions
+  static enhanceIncludesWithWhere(includes, nestedFilters) {
+    if (!Array.isArray(includes)) {
+      return includes;
+    }
+
+    return includes.map((include) => {
+      const enhancedInclude = { ...include };
+
+      // Check if this include should have where conditions
+      const associationName = include.as || include.model.name.toLowerCase();
+
+      // Find filters that match this association
+      const relevantFilters = {};
+      Object.keys(nestedFilters).forEach((filterKey) => {
+        if (filterKey.startsWith(associationName + ".")) {
+          const fieldName = filterKey.split(".")[1];
+          relevantFilters[fieldName] = nestedFilters[filterKey];
+        }
+      });
+
+      // Add where conditions to this include
+      if (Object.keys(relevantFilters).length > 0) {
+        enhancedInclude.where = {
+          ...enhancedInclude.where,
+          ...relevantFilters,
+        };
+
+        // Ensure we don't exclude records if no match found
+        enhancedInclude.required =
+          enhancedInclude.required !== undefined
+            ? enhancedInclude.required
+            : false;
+      }
+
+      // Recursively handle nested includes
+      if (enhancedInclude.include) {
+        enhancedInclude.include = this.enhanceIncludesWithWhere(
+          enhancedInclude.include,
+          nestedFilters,
+        );
+      }
+
+      return enhancedInclude;
+    });
+  }
+
   static async get(id, filters = {}, queryOptionsPassed = {}) {
-    // queryOptionsPassed is typically the result from an external call to getOptions
-    if (!this.Model && this.Model !== null) {
+    if (!this.Model) {
       throw new Error(
         "BaseService.Model is not defined. Please set it in the subclass.",
       );
     }
 
     if (!id) {
-      // Ensure queryOptions has applyQueryPagination, defaulting to true if not set by getOptions directly
+      // Handle multiple records with pagination
       const queryOptions = {
-        applyQueryPagination: true, // Default if not present
+        applyQueryPagination: true,
         ...queryOptionsPassed,
       };
-
       const { count, rows } = await this.Model.findAndCountAll(queryOptions);
 
       let returnOnlyArray = false;
 
-      // Condition 1: The 'filters' parameter for this 'get' call explicitly disables pagination structure.
+      // Check if pagination should be disabled
       if (
         filters &&
         (filters.pagination === false ||
@@ -163,20 +327,18 @@ class BaseService {
             String(filters.pagination).toLowerCase() === "false"))
       ) {
         returnOnlyArray = true;
-      }
-      // Condition 2: The query itself was not paginated (as determined by getOptions).
-      else if (queryOptions.applyQueryPagination === false) {
+      } else if (queryOptions.applyQueryPagination === false) {
         returnOnlyArray = true;
       }
 
       if (returnOnlyArray) {
-        return rows; // Return just the data array
+        return rows;
       }
 
-      // --- If we reach here, create a paginated response structure ---
+      // Build paginated response
       let totalItems = count;
 
-      // Adjust totalItems if grouping was used and `count` is an array of group counts
+      // Handle grouped results
       if (queryOptions.group && Array.isArray(count)) {
         if (count.length > 0 && typeof count[0].count !== "undefined") {
           totalItems = count.reduce(
@@ -184,12 +346,11 @@ class BaseService {
             0,
           );
         } else {
-          totalItems = count.length; // Number of groups if count is an array of grouped objects without a .count property directly
+          totalItems = count.length;
         }
       } else if (typeof count !== "number") {
-        // Fallback for unexpected count formats (e.g. object, or array not from grouping)
         console.warn(
-          "BaseService.get: 'count' from findAndCountAll was not a number or a recognized grouped array. Defaulting totalItems.",
+          "BaseService.get: Unexpected count format. Defaulting totalItems.",
         );
         totalItems = Array.isArray(rows) ? rows.length : 0;
       }
@@ -197,8 +358,6 @@ class BaseService {
       const limitFromOptions = queryOptions.limit;
       const offsetFromOptions = queryOptions.offset;
 
-      // If query was not paginated (applyQueryPagination:false), all items are fetched.
-      // Pagination object then describes this single page of all items.
       const itemsPerPage =
         queryOptions.applyQueryPagination &&
         typeof limitFromOptions === "number" &&
@@ -206,7 +365,7 @@ class BaseService {
           ? limitFromOptions
           : totalItems > 0
             ? totalItems
-            : 1; // if no pagination or invalid limit, itemsPerPage is totalItems
+            : 1;
 
       const currentPage =
         queryOptions.applyQueryPagination &&
@@ -225,26 +384,22 @@ class BaseService {
           totalItems,
           totalPages,
           currentPage,
-          itemsPerPage, // Or `limit: limitFromOptions` if you prefer
+          itemsPerPage,
         },
       };
     }
 
-    // Handling fetching a single document by ID
-    // The original code used 'this.Model.findDocById(id)'
-    // Assuming standard Sequelize, findByPk is preferred.
-    // queryOptionsPassed can be used here for includes, attributes, etc.
+    // Handle single record by ID
     const document = await this.Model.findByPk(id, queryOptionsPassed);
-    // if (!document) { throw new Error('Document not found'); /* or handle as needed */ }
-    return document; // Or { result: document } for consistency if desired
+    return document;
   }
 
-  static async getDoc(filters, options = {}) {
+  static async getDoc(filters, options) {
     return await this.Model.findDoc(filters, options);
   }
 
-  static async getDocById(id, allowNull = false) {
-    return await this.Model.findDocById(id, allowNull);
+  static async getDocById(id, options) {
+    return await this.Model.findDocById(id, options);
   }
 
   static async create(data) {
