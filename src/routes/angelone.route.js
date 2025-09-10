@@ -71,13 +71,49 @@ router.route("/login/:id?").get(
       });
     }
 
-    console.log(true);
+    async function getIntradayBalance({
+      apiKey,
+      token,
+      clientLocalIP = "127.0.0.1",
+      clientPublicIP = "127.0.0.1",
+      macAddress = "AA:BB:CC:DD:EE:FF",
+    }) {
+      try {
+        const res = await axios.get(`${BASE_URL}/user/v1/getRMS`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "X-PrivateKey": apiKey,
+            "X-UserType": "USER",
+            "X-SourceID": "WEB",
+            "X-ClientLocalIP": clientLocalIP,
+            "X-ClientPublicIP": clientPublicIP,
+            "X-MACAddress": macAddress,
+            Accept: "application/json",
+            "Content-Type": "application/json",
+          },
+        });
+
+        return res.data?.data?.availableintradaypayin;
+      } catch (err) {
+        console.error(
+          "Error fetching Intraday Balance:",
+          err.response?.data || err.message,
+        );
+        return 0;
+      }
+    }
+
+    const balance = await getIntradayBalance({
+      apiKey: brokerKey.apiKey,
+      token: auth_token,
+    });
 
     // Step 2: Update broker key with new tokens
     session.set("transaction", await sequelize.transaction());
     brokerKey.token = auth_token; // JWT token for API calls
     brokerKey.tokenDate = new Date();
     brokerKey.status = true;
+    brokerKey.balance = balance;
 
     await brokerKey.save();
 
