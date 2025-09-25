@@ -49,7 +49,15 @@ class BrokerKeyService extends BaseService {
     data.loginUrl = loginUrl;
     data.redirectUrl = redirectUrl;
 
-    return await super.create(data);
+    const key = await super.create(data);
+    const { loginUrl: newLoginUrl, redirectUrl: newRedirectUrl } =
+      this.getLoginConfig(broker.name, data.apiKey, key.id);
+
+    key.loginUrl = newLoginUrl;
+    key.redirectUrl = newRedirectUrl;
+
+    await key.save();
+    return key;
   }
 
   static async update(id, data) {
