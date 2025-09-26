@@ -11,6 +11,8 @@ import { isWithinTradingHoursIST } from "#utils/dayChecker";
 
 const router = express.Router();
 
+const BASE_URL = "https://apiconnect.angelbroking.com/rest/secure/angelbroking";
+
 router.route("/login/:id?").get(
   asyncHandler(async function login(req, res, next) {
     const { auth_token, feed_token, state } = req.query;
