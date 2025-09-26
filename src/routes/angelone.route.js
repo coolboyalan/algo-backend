@@ -93,7 +93,7 @@ router.route("/login/:id?").get(
           },
         });
 
-        return res.data?.data?.availableintradaypayin;
+        return res.data?.data?.availablecash;
       } catch (err) {
         console.error(
           "Error fetching Intraday Balance:",
