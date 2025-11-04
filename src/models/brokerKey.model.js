@@ -85,6 +85,10 @@ BrokerKey.initialize(
       defaultValue: 5,
       allowNull: false,
     },
+    type: {
+      type: DataTypes.ENUM("buying", "selling"),
+      defaultValue: "buying",
+    },
   },
   {
     indexes: [
