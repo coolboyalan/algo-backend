@@ -102,10 +102,12 @@ BrokerKey.initialize(
 
 BrokerKey.belongsTo(Broker, {
   foreignKey: "brokerId",
+  as: "broker",
 });
 
 BrokerKey.belongsTo(User, {
   foreignKey: "userId",
+  as: "user",
 });
 
 export default BrokerKey;

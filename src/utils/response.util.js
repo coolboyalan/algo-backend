@@ -7,5 +7,10 @@ export const sendResponse = async (statusCode, res, data, message) => {
 
   res
     .status(statusCode)
-    .json({ success, ...(message ? { message } : null), data });
+    .json({
+      success,
+      ...(message ? { message } : null),
+      data,
+      timestamp: new Date(),
+    });
 };

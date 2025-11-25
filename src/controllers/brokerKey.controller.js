@@ -80,10 +80,12 @@ class BrokerKeyController extends BaseController {
         {
           model: Broker,
           attributes: ["name", "id"],
+          as: "broker",
         },
         {
           model: User,
           attributes: ["name", "id"],
+          as: "user",
         },
       ],
     };
@@ -92,7 +94,7 @@ class BrokerKeyController extends BaseController {
 
     const options = this.Service.getOptions(req.query, customOptions);
 
-    const data = await this.Service.get(null, req.query, options);
+    const data = await this.Service.getWithCursorPagination(req.query, options);
     sendResponse(httpStatus.OK, res, data);
   }
 }

@@ -22,7 +22,7 @@ class Asset extends BaseModel {
 
 Asset.initialize({
   name: {
-    type: DataTypes.ENUM(Object.keys(Asset.INDEX_CONFIGS)),
+    type: DataTypes.STRING,
     allowNull: false,
     //WARN: Unique constraint missing
   },

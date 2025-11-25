@@ -37,21 +37,53 @@ class UserController extends BaseController {
       role: user.role,
     };
 
-    console.log(user.toJSON());
+    const token = createToken(payload);
+
+    const data = {
+      token,
+      refreshToken: null, // if you use refresh tokens later
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar || null,
+        emailVerified: user.emailVerified ?? false,
+        permissions: user.permissions || [],
+      },
+      expiresIn: 604800, // 7 days
+    };
+
+    sendResponse(httpStatus.OK, res, data, "Logged in successfully");
+  }
+
+  static async create(req, res, next) {
+    const user = await this.Service.create(req.body);
+    const payload = {
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    };
 
     const token = createToken(payload);
 
-    const transaction = await session.get("transaction");
-    await transaction.commit();
-
-    return res.status(200).json({
-      status: true,
-      message: "Login successful",
+    const data = {
       token,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    });
+      refreshToken: null, // if you use refresh tokens later
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        avatar: user.avatar || null,
+        emailVerified: user.emailVerified ?? false,
+        permissions: user.permissions || [],
+      },
+      expiresIn: 604800, // 7 days
+    };
+
+    sendResponse(httpStatus.OK, res, data, "Account created successfully");
   }
 }
 

@@ -40,6 +40,7 @@ DailyAsset.initialize(
 
 DailyAsset.belongsTo(Asset, {
   foreignKey: "assetId",
+  as: "asset",
 });
 
 export default DailyAsset;

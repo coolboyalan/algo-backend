@@ -19,6 +19,8 @@ try {
   console.log(e);
 }
 
+globalThis.httpStatus = httpStatus;
+
 // Ensure the database connection is established before starting the server
 await sequelize.authenticate();
 // await sequelize.sync({ alter: true });
@@ -41,9 +43,14 @@ server.use("/api", router);
 
 // 404 Handler (Path Not Found) – for undefined routes
 server.use((_req, res) => {
-  res
-    .status(httpStatus.NOT_FOUND)
-    .json({ status: false, message: "Path not found" });
+  res.status(httpStatus.NOT_FOUND).json({
+    success: false,
+    error: {
+      code: "NOT_FOUND",
+      message: "Path not found",
+    },
+    timestamp: new Date().toISOString(),
+  });
 });
 
 // Global Error Handler – Catch all errors

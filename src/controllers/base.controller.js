@@ -6,13 +6,31 @@ class BaseController {
 
   static async get(req, res, next) {
     const { id } = req.params;
+
+    if (id) {
+      // Single record fetch
+      const options = this.Service.getOptions(req.query, {});
+      const data = await this.Service.getSingle(id, options);
+      return sendResponse(
+        httpStatus.OK,
+        res,
+        data,
+        `${this.Model.name} fetched successfully`,
+      );
+    }
+
+    // Multiple records with cursor pagination
     const options = this.Service.getOptions(req.query, {});
-    const data = await this.Service.get(id, req.query, options);
-    sendResponse(
+    const result = await this.Service.getWithCursorPagination(
+      req.query,
+      options,
+    );
+
+    return sendResponse(
       httpStatus.OK,
       res,
-      data,
-      `${this.Service.Model.updatedName()} fetched successfully`,
+      result,
+      `${this.Service.Model.updatedName()} list fetched successfully`,
     );
   }
 
