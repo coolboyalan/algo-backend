@@ -5,12 +5,10 @@ export const sendResponse = async (statusCode, res, data, message) => {
   const transaction = session.get("transaction");
   transaction ? await transaction.commit() : null;
 
-  res
-    .status(statusCode)
-    .json({
-      success,
-      ...(message ? { message } : null),
-      data,
-      timestamp: new Date(),
-    });
+  res.status(statusCode).json({
+    success,
+    ...(message ? { message } : null),
+    data,
+    timestamp: new Date(),
+  });
 };

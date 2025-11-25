@@ -38,7 +38,7 @@ class BaseService {
         : searchFields.split(",").map((f) => f.trim());
 
       where[Op.or] = searchFieldsArray.map((field) => {
-        if (field.includes(".")) {
+        if (field.includes(".") || field === "id") {
           // Nested field search (e.g., "user.name")
           return sequelizeWhere(cast(col(field), "TEXT"), {
             [Op.iLike]: `%${searchQuery}%`,
@@ -189,7 +189,7 @@ class BaseService {
   static async getSingle(id, options) {
     const document = await this.Model.findByPk(id, options);
     if (!document) {
-      throw new Error(`${this.Model.name} not found`);
+      throw new Error(`${this.Model.updatedName()} not found`);
     }
     return document;
   }

@@ -44,6 +44,12 @@ OptionTradeLog.initialize({
 
 BrokerKey.hasMany(OptionTradeLog, {
   foreignKey: "brokerKeyId",
+  as: "optionTrades",
+});
+
+OptionTradeLog.belongsTo(BrokerKey, {
+  foreignKey: "brokerKeyId",
+  as: "brokerKey",
 });
 
 export default OptionTradeLog;

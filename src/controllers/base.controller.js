@@ -15,7 +15,7 @@ class BaseController {
         httpStatus.OK,
         res,
         data,
-        `${this.Model.name} fetched successfully`,
+        `${this.Service.Model.updatedName()} fetched successfully`,
       );
     }
 
