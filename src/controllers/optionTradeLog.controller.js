@@ -4,11 +4,21 @@ import BaseController from "#controllers/base";
 import BrokerKeyService from "#services/brokerKey";
 import UserService from "#services/user";
 import BrokerService from "#services/broker";
+import { session } from "#middlewares/requestSession";
 
 class OptionTradeLogController extends BaseController {
   static Service = OptionTradeLogService;
 
   static async get(req, res, next) {
+    let userId = session.get("userId");
+    const role = session.get("role");
+
+    if (["super_admin", "admin"].includes(role)) {
+      req.query.userId = req.query.userId ?? userId;
+    } else {
+      req.query.userId = userId;
+    }
+
     const customOptions = {
       include: [
         {
@@ -19,6 +29,11 @@ class OptionTradeLogController extends BaseController {
               model: UserService.Model,
               as: "user",
               attributes: ["id", "name"],
+              where: {
+                ...(["super_admin", "admin"].includes(role)
+                  ? null
+                  : { id: userId }),
+              },
             },
             {
               model: BrokerService.Model,

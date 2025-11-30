@@ -21,7 +21,7 @@ User.initialize(
       allowNull: false,
     },
     role: {
-      type: DataTypes.ENUM("user", "admin"),
+      type: DataTypes.ENUM("user", "admin", "super_admin"),
       allowNull: false,
       defaultValue: "user",
     },

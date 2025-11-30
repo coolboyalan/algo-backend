@@ -14,7 +14,13 @@ class BrokerKeyController extends BaseController {
 
   static async create(req, res, next) {
     const userId = session.get("userId");
-    req.body.userId = userId;
+    const role = session.get("role");
+
+    if (["super_admin", "admin"].includes(role)) {
+      req.body.userId = req.body.userId ?? userId;
+    } else {
+      req.body.userId = userId;
+    }
     return await super.create(req, res, next);
   }
 
@@ -65,7 +71,13 @@ class BrokerKeyController extends BaseController {
 
   static async update(req, res, next) {
     const userId = session.get("userId");
-    req.body.userId = userId;
+    const role = session.get("role");
+
+    if (["super_admin", "admin"].includes(role)) {
+      req.body.userId = req.body.userId ?? userId;
+    } else {
+      req.body.userId = userId;
+    }
     return await super.update(req, res, next);
   }
 
@@ -73,6 +85,15 @@ class BrokerKeyController extends BaseController {
     const { id } = req.params;
     if (id) {
       return await super.get(req, res, next);
+    }
+
+    let userId = session.get("userId");
+    const role = session.get("role");
+
+    if (["super_admin", "admin"].includes(role)) {
+      req.query.userId = req.query.userId ?? userId;
+    } else {
+      req.query.userId = userId;
     }
 
     const customOptions = {
@@ -86,11 +107,14 @@ class BrokerKeyController extends BaseController {
           model: User,
           attributes: ["name", "id"],
           as: "user",
+          where: {
+            ...(["super_admin", "admin"].includes(role)
+              ? null
+              : { id: userId }),
+          },
         },
       ],
     };
-
-    req.query.userId = session.get("userId");
 
     const options = this.Service.getOptions(req.query, customOptions);
 
