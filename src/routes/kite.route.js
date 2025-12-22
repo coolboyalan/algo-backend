@@ -107,6 +107,7 @@ router.route("/login/:id?").get(
         include: [
           {
             model: AssetService.Model,
+            as: "asset",
           },
         ],
       },
