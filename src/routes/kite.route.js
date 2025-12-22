@@ -101,20 +101,20 @@ router.route("/login/:id?").get(
     const now = new Date();
     const day = dayMap[now.getDay()];
 
-    const asset = await DailyAssetService.getDoc(
-      { day },
-      {
-        include: [
-          {
-            model: AssetService.Model,
-            as: "asset",
-          },
-        ],
-      },
-    );
-
-    const assetToken = asset.Asset.zerodhaToken;
-
+    // const asset = await DailyAssetService.getDoc(
+    //   { day },
+    //   {
+    //     include: [
+    //       {
+    //         model: AssetService.Model,
+    //         as: "asset",
+    //       },
+    //     ],
+    //   },
+    // );
+    //
+    // const assetToken = asset.Asset.zerodhaToken;
+    //
     session.set("transaction", await sequelize.transaction());
 
     brokerKey.token = accessToken;
@@ -125,11 +125,11 @@ router.route("/login/:id?").get(
     await brokerKey.save();
 
     // Step 5: Generate levels and store globally
-    const todayData = await DailyLevelService.create({
-      instrumentToken: assetToken,
-      apiKey: brokerKey.apiKey,
-      accessToken,
-    });
+    // const todayData = await DailyLevelService.create({
+    //   instrumentToken: assetToken,
+    //   apiKey: brokerKey.apiKey,
+    //   accessToken,
+    // });
 
     sendResponse(200, res, { profile, accessToken }, "Login successful");
   }),
