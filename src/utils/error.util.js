@@ -34,7 +34,7 @@ export const globalErrorHandler = async (error, req, res, next) => {
   }
 
   // log full error server-side (replace with your logger if you have one)
-  console.error(error);
+  console.error(error.response.data);
 
   // Sequelize ValidationError
   if (error instanceof ValidationError) {
