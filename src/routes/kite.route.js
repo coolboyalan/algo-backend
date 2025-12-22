@@ -62,6 +62,8 @@ router.route("/login/:id?").get(
     const sessionData = sessionResponse.data.data;
     const accessToken = sessionData.access_token;
 
+    console.log("Logged IN");
+
     // Step 3: Fetch user profile
     const profileResponse = await axios.get(
       "https://api.kite.trade/user/profile",
