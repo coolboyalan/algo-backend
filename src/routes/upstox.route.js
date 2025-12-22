@@ -46,7 +46,7 @@ router.route("/login/:id?").get(
         },
       );
     } catch (e) {
-      console.log(e);
+      console.log(e.respons.responsee);
       return next(e);
     }
 
