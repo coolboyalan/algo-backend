@@ -27,23 +27,28 @@ router.route("/login/:id?").get(
 
     session.set("transaction", await sequelize.transaction());
 
-    // Step 1: Get Access Token
-    const tokenRes = await axios.post(
-      "https://api.upstox.com/v2/login/authorization/token",
-      new URLSearchParams({
-        code,
-        client_id: key.apiKey,
-        client_secret: key.apiSecret,
-        redirect_uri: key.redirectUrl,
-        grant_type: "authorization_code",
-      }).toString(),
-      {
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          accept: "application/json",
+    try {
+      // Step 1: Get Access Token
+      const tokenRes = await axios.post(
+        "https://api.upstox.com/v2/login/authorization/token",
+        new URLSearchParams({
+          code,
+          client_id: key.apiKey,
+          client_secret: key.apiSecret,
+          redirect_uri: key.redirectUrl,
+          grant_type: "authorization_code",
+        }).toString(),
+        {
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+            accept: "application/json",
+          },
         },
-      },
-    );
+      );
+    } catch (e) {
+      console.log(e);
+      return next(e);
+    }
 
     const { access_token } = tokenRes.data;
     key.token = access_token;
