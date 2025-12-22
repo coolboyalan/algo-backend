@@ -89,6 +89,10 @@ router.route("/login/:id?").get(
       },
     });
     const balance = balanceData.data.data.equity.available.opening_balance;
+    console.log({
+      brokerKey: brokerKey.id,
+      balance: balance,
+    });
 
     const dayMap = {
       1: "Monday",
